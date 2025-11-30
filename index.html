@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="theme-color" content="#050508">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <title>Aura Quantum</title>
+    <style>
+        /* --- ESTILOS QUANTUM --- */
+        :root {
+            --bg: #050508;
+            --glass: rgba(25, 25, 35, 0.9);
+            --border: rgba(255, 255, 255, 0.1);
+            --primary: #d8b4fe; /* Violeta */
+            --accent: #2dd4bf;   /* Teal */
+            --gold: #fcd34d;    /* Gold */
+            --rose: #fda4af;    /* Rose */
+            --text: #f3f4f6;
+        }
+
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; user-select: none; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: var(--bg); color: var(--text); margin: 0; height: 100vh;
+            overflow: hidden; display: flex; flex-direction: column;
+        }
+
+        /* FONDO */
+        #cymaticCanvas {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            z-index: 0; transition: all 0.5s ease; opacity: 0.5; pointer-events: none;
+        }
+        body.zen-active #cymaticCanvas {
+            z-index: 9999; opacity: 1; filter: contrast(1.5) brightness(1.3);
+            pointer-events: auto; cursor: pointer;
+        }
+
+        /* STARTUP */
+        #start-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: #050508; z-index: 10000;
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            transition: opacity 0.4s ease;
+        }
+        #start-btn {
+            background: linear-gradient(135deg, var(--primary), #a855f7);
+            color: #000; border: none; padding: 22px 60px; font-size: 1.1rem; border-radius: 50px; 
+            font-weight: 800; box-shadow: 0 0 40px rgba(216, 180, 254, 0.4);
+            letter-spacing: 2px; margin-top: 30px; animation: pulse 2s infinite;
+        }
+        @keyframes pulse { 0% {transform:scale(1);} 50% {transform:scale(1.05);} 100% {transform:scale(1);} }
+
+        /* UI */
+        #ui-layer {
+            position: relative; z-index: 10; height: 100%; display: flex; flex-direction: column;
+            opacity: 0; transition: opacity 0.8s ease; pointer-events: none;
+        }
+        body.zen-active #ui-layer { opacity: 0 !important; pointer-events: none !important; }
+
+        header { padding: 15px; text-align: center; background: linear-gradient(to bottom, rgba(0,0,0,0.95), transparent); }
+        .logo-img { max-height: 75px; margin: 0 auto 10px; filter: drop-shadow(0 0 15px rgba(216,180,254,0.3)); display: block; }
+        h1 { margin: 0; font-weight: 200; letter-spacing: 4px; font-size: 1.2rem; color: var(--primary); }
+        .badge { font-size: 0.7rem; color: var(--gold); border: 1px solid var(--gold); padding: 2px 8px; border-radius: 10px; }
+
+        /* SCROLL AREA */
+        #viewport { flex: 1; overflow-y: auto; padding: 10px 20px 100px; -webkit-overflow-scrolling: touch; }
+
+        .panel {
+            background: var(--glass); border: 1px solid var(--border); border-radius: 24px;
+            padding: 20px; margin-bottom: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+
+        /* CONTROLS */
+        .top-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        #playBtn {
+            width: 75px; height: 75px; border-radius: 50%; background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.2); font-size: 2rem; color: #fff;
+            display: flex; justify-content: center; align-items: center; transition: 0.3s;
+        }
+        #playBtn.playing { background: var(--primary); color: #000; box-shadow: 0 0 35px rgba(216,180,254,0.4); }
+        .zen-btn { background: rgba(255,255,255,0.1); border: 1px solid var(--border); color: #fff; padding: 8px 12px; border-radius: 15px; font-size: 0.75rem; }
+
+        .slider-group { margin-bottom: 20px; }
+        .lbl { display: flex; justify-content: space-between; font-size: 0.8rem; color: #aaa; margin-bottom: 8px; }
+        .val { color: #fff; font-weight: bold; }
+        input[type=range] { width: 100%; accent-color: var(--primary); height: 4px; background: rgba(255,255,255,0.1); border-radius: 2px; -webkit-appearance: none; }
+        input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 20px; height: 20px; background: var(--primary); border-radius: 50%; box-shadow: 0 0 10px var(--primary); margin-top: -8px; }
+        input[type=range]::-webkit-slider-runnable-track { height: 4px; }
+
+        .extra { display: flex; gap: 10px; margin-bottom: 15px; align-items: center; }
+        select { flex: 1; background: rgba(0,0,0,0.4); color: #fff; border: 1px solid var(--border); padding: 10px; border-radius: 10px; }
+        .iso-wrap { display: flex; align-items: center; gap: 8px; font-size: 0.8rem; color: #ccc; background: rgba(0,0,0,0.3); padding: 8px 12px; border-radius: 10px; border: 1px solid var(--border); }
+        .iso-wrap input { width: 16px; height: 16px; accent-color: var(--accent); }
+
+        /* PRESETS GRID */
+        .cat-title { color: var(--gold); font-size: 0.9rem; margin: 15px 0 10px; text-transform: uppercase; letter-spacing: 1px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 5px; }
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+        .card {
+            background: rgba(255,255,255,0.03); border: 1px solid var(--border);
+            padding: 12px; border-radius: 12px; cursor: pointer; position: relative; overflow: hidden;
+        }
+        .card:active { background: rgba(255,255,255,0.1); }
+        .card h3 { margin: 0 0 4px; font-size: 0.85rem; color: #fff; }
+        .card p { margin: 0; font-size: 0.65rem; color: #aaa; }
+        .card.adv { border-left: 3px solid var(--accent); }
+        .card.spi { border-left: 3px solid var(--primary); }
+        .card.bod { border-left: 3px solid var(--rose); }
+
+        /* NAV */
+        .nav {
+            position: fixed; bottom: 0; width: 100%; background: rgba(10,10,15,0.95);
+            border-top: 1px solid var(--border); display: flex; height: 75px; z-index: 50; padding-bottom: 10px;
+        }
+        .nav-btn { flex: 1; border: none; background: none; color: #666; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; font-size: 0.65rem; }
+        .nav-btn.active { color: #fff; }
+        .nav-icon { font-size: 1.4rem; }
+        .nav-btn.active .nav-icon { transform: translateY(-3px); color: var(--primary); text-shadow: 0 0 10px var(--primary); }
+
+        .view { display: none; opacity: 0; animation: fadeIn 0.3s forwards; }
+        .view.active { display: block; }
+        @keyframes fadeIn { from{opacity:0;transform:translateY(10px);} to{opacity:1;transform:translateY(0);} }
+
+        /* COHERENCE */
+        .breath-c {
+            width: 160px; height: 160px; border-radius: 50%; border: 3px solid var(--accent);
+            margin: 40px auto; display: flex; justify-content: center; align-items: center;
+            font-size: 1.2rem; color: var(--accent); box-shadow: 0 0 40px rgba(45,212,191,0.2);
+        }
+
+    </style>
+</head>
+<body>
+
+    <canvas id="cymaticCanvas"></canvas>
+    
+    <div id="start-overlay">
+        <img src="1000428918.png" alt="Logo" style="max-height: 100px; margin-bottom: 20px;">
+        <h1 style="font-size: 2.2rem; margin: 0; color: var(--primary); letter-spacing: 6px;">AURA</h1>
+        <p style="color: #888; letter-spacing: 3px; font-size: 0.9rem;">QUANTUM</p>
+        <button id="start-btn" onclick="startApp()">CONECTAR</button>
+        <p style="position:absolute; bottom:20px; font-size:0.7rem; color:#444;">v4.0 Quantum Engine</p>
+    </div>
+
+    <div id="ui-layer">
+        <header>
+            <img src="1000428918.png" class="logo-img" alt="Logo">
+            <h1>AURA</h1>
+            <span class="badge" id="statusBadge">Listo</span>
+        </header>
+
+        <div id="viewport">
+            
+            <div id="v-control" class="view active">
+                <div class="panel">
+                    <div class="top-row">
+                        <button class="zen-btn" onclick="toggleZen()">👁️ Zen</button>
+                        <div id="playBtn" onclick="togglePlay()">▶</div>
+                        <div style="width: 50px;"></div>
+                    </div>
+
+                    <div class="slider-group">
+                        <div class="lbl"><span>Frecuencia Base</span><span class="val" id="lblF">432 Hz</span></div>
+                        <input type="range" id="slF" min="60" max="1111" value="432">
+                    </div>
+                    <div class="slider-group">
+                        <div class="lbl"><span>Beat / Pulso</span><span class="val" id="lblB">7.8 Hz</span></div>
+                        <input type="range" id="slB" min="0.1" max="55" step="0.1" value="7.8">
+                    </div>
+                    
+                    <div class="extra">
+                        <select id="selAtmos">
+                            <option value="ocean">🌊 Océano Profundo</option>
+                            <option value="forest">🌲 Bosque Mañana</option>
+                            <option value="rain">🌧️ Lluvia Suave</option>
+                            <option value="air">🌬️ Ruido Blanco</option>
+                        </select>
+                        <label class="iso-wrap">
+                            <input type="checkbox" id="chkIso"> Isocrónico
+                        </label>
+                    </div>
+                    <div class="slider-group">
+                        <div class="lbl"><span>Volumen Atmósfera</span><span class="val" id="lblN">20%</span></div>
+                        <input type="range" id="slN" min="0" max="0.4" step="0.01" value="0.1">
+                    </div>
+                </div>
+            </div>
+
+            <div id="v-presets" class="view">
+                
+                <div class="cat-title">✨ Cuántico & Místico</div>
+                <div class="grid">
+                    <div class="card spi" onclick="load(1111, 0)"><h3>1111 Hz</h3><p>Angel Number / Manifestación</p></div>
+                    <div class="card spi" onclick="load(111, 0)"><h3>111 Hz</h3><p>Holy Frequency / Templos</p></div>
+                    <div class="card spi" onclick="load(963, 40)"><h3>963 Hz + Gamma</h3><p>Activación Pineal</p></div>
+                    <div class="card spi" onclick="load(888, 8)"><h3>888 Hz</h3><p>Abundancia Infinita</p></div>
+                </div>
+
+                <div class="cat-title
+                  
