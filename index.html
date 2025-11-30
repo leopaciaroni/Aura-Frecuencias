@@ -404,244 +404,17 @@
                 bass = bass / 40 / 255;
 
                 this.angle += 0.005 + (bass * 0.02);
-                        box-shadow: 0 0 40px rgba(52, 211, 153, 0.15);
-        }
-
-        /* Modo Zen */
-        body.zen-mode #ui-layer { opacity: 0; pointer-events: none; }
-        .zen-instruction {
-            position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
-            color: rgba(255,255,255,0.5); pointer-events: none; opacity: 0;
-        }
-        body.zen-mode .zen-instruction { animation: blink 3s forwards; }
-        @keyframes blink { 0% {opacity:0} 20% {opacity:1} 80% {opacity:1} 100% {opacity:0} }
-
-    </style>
-</head>
-<body>
-
-    <!-- Fondo -->
-    <canvas id="cymaticCanvas"></canvas>
-    <div class="zen-instruction">Toca la pantalla para volver</div>
-
-    <!-- PANTALLA DE INICIO OBLIGATORIA PARA AUDIO MÓVIL -->
-    <div id="start-overlay">
-        <h1 style="font-size: 2rem; margin-bottom: 10px;">AURA</h1>
-        <p style="color:#888; margin-bottom: 40px;">Bio-Resonancia & Sonido</p>
-        <button id="start-btn">ACTIVAR SISTEMA</button>
-        <p style="color:#444; font-size: 0.7rem; margin-top: 30px;">Requiere sonido activado</p>
-    </div>
-
-    <!-- Interfaz -->
-    <div id="ui-layer">
-        <header>
-            <h1>Aura Ultimate</h1>
-            <div id="statusText" class="status-badge">Sistema Listo</div>
-        </header>
-
-        <div id="main-viewport">
-            
-            <!-- VISTA CONTROL -->
-            <div id="view-control" class="view-section active">
-                <div class="panel">
-                    <div class="play-row">
-                        <div id="playBtn">▶</div>
-                        <button id="zenBtn">👁️ Zen</button>
-                    </div>
-
-                    <div class="slider-wrap">
-                        <div class="slider-head"><span>Frecuencia Base</span> <span class="val" id="valFreq">432 Hz</span></div>
-                        <input type="range" id="slFreq" min="60" max="963" value="432">
-                    </div>
-                    <div class="slider-wrap">
-                        <div class="slider-head"><span>Pulso Binaural</span> <span class="val" id="valBeat">7.8 Hz</span></div>
-                        <input type="range" id="slBeat" min="0" max="45" step="0.1" value="7.8">
-                    </div>
-                    <div class="slider-wrap">
-                        <div class="slider-head"><span>Atmósfera</span> <span class="val" id="valNoise">20%</span></div>
-                        <input type="range" id="slNoise" min="0" max="0.5" step="0.01" value="0.05">
-                    </div>
-                </div>
-
-                <div class="panel">
-                    <div style="display:flex; gap:10px;">
-                        <input type="text" id="saveName" placeholder="Nombre preset..." style="flex:1; background:rgba(255,255,255,0.1); border:none; color:#fff; padding:12px; border-radius:10px;">
-                        <button onclick="savePreset()" style="background:var(--primary); color:#000; border:none; padding:0 20px; border-radius:10px; font-weight:bold;">Guardar</button>
-                    </div>
-                </div>
-            </div>
-
-            <!-- VISTA PRESETS -->
-            <div id="view-presets" class="view-section">
-                <h3 style="color:var(--gold); font-weight:300; margin-top:0;">Frecuencias Maestras</h3>
-                <div class="grid-2">
-                    <div class="chip" onclick="loadP(432, 7.83)"><strong>Schumann (7.83)</strong><span>Conexión Tierra</span></div>
-                    <div class="chip" onclick="loadP(528, 4)"><strong>Sanación (528)</strong><span>Reparación ADN</span></div>
-                    <div class="chip" onclick="loadP(40, 40)"><strong>Gamma (40)</strong><span>Foco Cognitivo</span></div>
-                    <div class="chip" onclick="loadP(111, 0)"><strong>Sagrado (111)</strong><span>Misticismo Puro</span></div>
-                    <div class="chip" onclick="loadP(174, 2)"><strong>Alivio (174)</strong><span>Anti-Dolor Delta</span></div>
-                    <div class="chip" onclick="loadP(852, 10)"><strong>Intuición (852)</strong><span>Despertar Alpha</span></div>
-                </div>
-                <h3 style="color:#fff; font-weight:300; margin-top:20px;">Mis Guardados</h3>
-                <div id="userList" class="grid-2"></div>
-            </div>
-
-            <!-- VISTA COHERENCIA -->
-            <div id="view-coherence" class="view-section">
-                <div class="panel" style="text-align:center; padding:40px 20px;">
-                    <h2 style="color:var(--heart); font-weight:300; margin:0;">Respiración Guiada</h2>
-                    <div class="coherence-circle" id="breathCircle">
-                        <span id="breathText">LISTO</span>
-                    </div>
-                    <button id="coherenceBtn" onclick="toggleCoherence()" style="background:var(--heart); color:#000; border:none; padding:15px 40px; border-radius:30px; font-weight:bold; font-size:1rem; margin-top:20px;">INICIAR</button>
-                </div>
-            </div>
-
-        </div>
-
-        <nav class="navbar">
-            <button class="nav-item active" data-target="control" onclick="switchView('control')">
-                <span class="nav-icon">🎚️</span><span>Control</span>
-            </button>
-            <button class="nav-item" data-target="presets" onclick="switchView('presets')">
-                <span class="nav-icon">💠</span><span>Presets</span>
-            </button>
-            <button class="nav-item" data-target="coherence" onclick="switchView('coherence')">
-                <span class="nav-icon">💚</span><span>Coherencia</span>
-            </button>
-        </nav>
-    </div>
-
-    <script>
-        // --- 1. MOTOR DE AUDIO ---
-        const audio = {
-            ctx: null, nodes: {}, isPlaying: false,
-            
-            init() {
-                if(this.ctx) { if(this.ctx.state === 'suspended') this.ctx.resume(); return; }
-                try {
-                    const AC = window.AudioContext || window.webkitAudioContext;
-                    this.ctx = new AC();
-                    this.nodes.master = this.ctx.createGain();
-                    this.nodes.analyser = this.ctx.createAnalyser();
-                    this.nodes.analyser.fftSize = 2048;
-                    this.nodes.master.connect(this.ctx.destination);
-                    this.nodes.master.connect(this.nodes.analyser);
-                    
-                    this.nodes.toneGain = this.ctx.createGain();
-                    this.nodes.noiseGain = this.ctx.createGain();
-                    this.nodes.toneGain.connect(this.nodes.master);
-                    this.nodes.noiseGain.connect(this.nodes.master);
-                } catch(e) { console.error(e); }
-            },
-
-            play(f, b, n) {
-                this.init();
-                if(!this.ctx) return;
-                
-                if(this.isPlaying) this.stop(true);
-
-                this.nodes.oscL = this.ctx.createOscillator();
-                this.nodes.oscR = this.ctx.createOscillator();
-                const pL = this.ctx.createStereoPanner();
-                const pR = this.ctx.createStereoPanner();
-
-                this.nodes.oscL.connect(pL).connect(this.nodes.toneGain);
-                this.nodes.oscR.connect(pR).connect(this.nodes.toneGain);
-                pL.pan.value = -1; pR.pan.value = 1;
-
-                // Ruido Rosa Optimizado
-                const bSize = this.ctx.sampleRate * 2;
-                const buf = this.ctx.createBuffer(1, bSize, this.ctx.sampleRate);
-                const d = buf.getChannelData(0);
-                let b0=0,b1=0,b2=0;
-                for(let i=0; i<bSize; i++) {
-                    const w = Math.random()*2-1;
-                    b0 = 0.99886*b0 + w*0.0555179;
-                    b1 = 0.99332*b1 + w*0.0750759;
-                    b2 = 0.96900*b2 + w*0.1538520;
-                    d[i] = (b0+b1+b2+w*0.5362)*0.1;
-                }
-                this.nodes.noise = this.ctx.createBufferSource();
-                this.nodes.noise.buffer = buf;
-                this.nodes.noise.loop = true;
-                this.nodes.noise.connect(this.nodes.noiseGain);
-
-                this.update(f, b, n);
-                this.nodes.toneGain.gain.setValueAtTime(0, this.ctx.currentTime);
-                this.nodes.toneGain.gain.linearRampToValueAtTime(0.5, this.ctx.currentTime + 0.5);
-
-                this.nodes.oscL.start(); this.nodes.oscR.start(); this.nodes.noise.start();
-                this.isPlaying = true;
-                
-                document.getElementById('playBtn').innerText = "■";
-                document.getElementById('playBtn').classList.add('playing');
-                vis.running = true; vis.loop();
-            },
-
-            stop(instant) {
-                if(!this.isPlaying) return;
-                const t = this.ctx.currentTime;
-                if(!instant) {
-                    this.nodes.master.gain.setValueAtTime(this.nodes.master.gain.value, t);
-                    this.nodes.master.gain.exponentialRampToValueAtTime(0.001, t+0.5);
-                }
-                setTimeout(() => {
-                    if(this.nodes.oscL) this.nodes.oscL.stop();
-                    if(this.nodes.oscR) this.nodes.oscR.stop();
-                    if(this.nodes.noise) this.nodes.noise.stop();
-                    if(!instant) this.nodes.master.gain.value = 1;
-                }, instant ? 0 : 500);
-                
-                this.isPlaying = false;
-                document.getElementById('playBtn').innerText = "▶";
-                document.getElementById('playBtn').classList.remove('playing');
-            },
-
-            update(f, b, n) {
-                if(!this.isPlaying) return;
-                const t = this.ctx.currentTime;
-                this.nodes.oscL.frequency.setTargetAtTime(f, t, 0.1);
-                this.nodes.oscR.frequency.setTargetAtTime(f+b, t, 0.1);
-                this.nodes.noiseGain.gain.setTargetAtTime(n, t, 0.1);
-            }
-        };
-
-        // --- 2. VISUALIZADOR ---
-        const vis = {
-            cvs: document.getElementById('cymaticCanvas'),
-            ctx: document.getElementById('cymaticCanvas').getContext('2d'),
-            ang: 0, hue: 260, running: false,
-            init() { 
-                this.resize(); window.onresize = () => this.resize();
-            },
-            resize() { this.cvs.width = window.innerWidth; this.cvs.height = window.innerHeight; },
-            loop() {
-                if(!this.running) return;
-                requestAnimationFrame(() => this.loop());
-                this.ctx.fillStyle = 'rgba(0,0,0,0.1)';
-                this.ctx.fillRect(0,0,this.cvs.width, this.cvs.height);
-                
-                if(!audio.isPlaying) return;
-                const len = audio.nodes.analyser.frequencyBinCount;
-                const data = new Uint8Array(len);
-                audio.nodes.analyser.getByteFrequencyData(data);
-                
-                let bass = 0; for(let i=0; i<40; i++) bass += data[i];
-                bass = bass / 40 / 255; // 0.0 - 1.0
-
-                this.ang += 0.005 + (bass * 0.02);
                 this.ctx.lineWidth = 1 + bass * 4;
                 this.ctx.strokeStyle = `hsla(${this.hue}, 80%, 60%, ${0.3 + bass})`;
 
                 const cx = this.cvs.width/2, cy = this.cvs.height/2;
-                this.draw(cx, cy, 100 + bass*80, 6, this.ang, bass);
-                this.draw(cx, cy, 200 + bass*40, 12, -this.ang, bass);
+                this.mandala(cx, cy, 100 + bass*80, 6, this.angle, bass);
+                this.mandala(cx, cy, 200 + bass*40, 12, -this.angle, bass);
             },
-            draw(x, y, r, sides, rot, ints) {
+            mandala(x, y, r, sides, rot, ints) {
                 this.ctx.beginPath();
                 for(let i=0; i<=sides; i++) {
-                    const th = (i/sides) * Math.PI*2 + rot;
+                    const th = (i/sides)*Math.PI*2 + rot;
                     const px = x + Math.cos(th)*r + Math.cos(th*5)*(r*0.2*ints);
                     const py = y + Math.sin(th)*r + Math.sin(th*5)*(r*0.2*ints);
                     if(i===0) this.ctx.moveTo(px,py); else this.ctx.lineTo(px,py);
@@ -650,279 +423,159 @@
             }
         };
 
-        // --- 3. INTERFAZ ---
-        // Inicio
-        document.getElementById('start-btn').onclick = () => {
-            audio.init();
-            document.getElementById('start-overlay').style.opacity = '0';
-            setTimeout(() => {
-                document.getElementById('start-overlay').style.display = 'none';
-                document.getElementById('ui-layer').style.opacity = '1';
-                vis.init(); vis.running = true; vis.loop();
-            }, 600);
-        };
-
-        // Sliders
-        const ui = { f: 432, b: 7.8, n: 0.05 };
-        const els = { f: document.getElementById('slFreq'), b: document.getElementById('slBeat'), n: document.getElementById('slnst AC = window.AudioContext || window.webkitAudioContext;
-                    if (!this.ctx) {
-                        this.ctx = new AC();
-                        
-                        // Nodos principales
-                        this.nodes.master = this.ctx.createGain();
-                        this.nodes.analyser = this.ctx.createAnalyser();
-                        this.nodes.analyser.fftSize = 2048;
-                        this.nodes.tone = this.ctx.createGain();
-                        this.nodes.noise = this.ctx.createGain();
-
-                        // Conexiones
-                        this.nodes.master.connect(this.ctx.destination);
-                        this.nodes.master.connect(this.nodes.analyser);
-                        this.nodes.tone.connect(this.nodes.master);
-                        this.nodes.noise.connect(this.nodes.master);
-                    }
-                    
-                    if (this.ctx.state === 'suspended') {
-                        this.ctx.resume();
-                    }
-                } catch (e) {
-                    alert("Error Audio: " + e.message);
-                }
-            },
-
-            play(f, b, n) {
-                this.init();
-                if (!this.ctx) return;
-                
-                // Si ya suena, detener suavemente antes de reiniciar
-                if (this.playing) this.stop(true);
-
-                // Osciladores
-                const oscL = this.ctx.createOscillator();
-                const oscR = this.ctx.createOscillator();
-                const panL = this.ctx.createStereoPanner();
-                const panR = this.ctx.createStereoPanner();
-
-                oscL.connect(panL).connect(this.nodes.tone);
-                oscR.connect(panR).connect(this.nodes.tone);
-                panL.pan.value = -1; 
-                panR.pan.value = 1;
-
-                // Ruido Rosa
-                const bs = this.ctx.sampleRate * 2;
-                const buf = this.ctx.createBuffer(1, bs, this.ctx.sampleRate);
-                const d = buf.getChannelData(0);
-                let b0=0,b1=0,b2=0;
-                for(let i=0; i<bs; i++) {
-                    const w = Math.random()*2-1;
-                    b0 = 0.99886*b0 + w*0.0555179;
-                    b1 = 0.99332*b1 + w*0.0750759;
-                    b2 = 0.96900*b2 + w*0.1538520;
-                    d[i] = (b0+b1+b2+w*0.5362)*0.1;
-                }
-                const noiseSrc = this.ctx.createBufferSource();
-                noiseSrc.buffer = buf;
-                noiseSrc.loop = true;
-                noiseSrc.connect(this.nodes.noise);
-
-                // Guardar referencias para detener luego
-                this.nodes.srcL = oscL;
-                this.nodes.srcR = oscR;
-                this.nodes.srcN = noiseSrc;
-
-                // Aplicar valores
-                this.update(f, b, n);
-                
-                // Fade In
-                this.nodes.tone.gain.setValueAtTime(0, this.ctx.currentTime);
-                this.nodes.tone.gain.linearRampToValueAtTime(0.5, this.ctx.currentTime + 0.1);
-                
-                oscL.start(); oscR.start(); noiseSrc.start();
-                this.playing = true;
-                
-                document.getElementById('playBtn').innerText = "■";
-                document.getElementById('playBtn').classList.add('active');
-                vis.animate();
-            },
-
-            stop(instant) {
-                if(!this.playing) return;
-                
-                // Fade Out
-                const t = this.ctx.currentTime;
-                if(!instant) {
-                    this.nodes.master.gain.setValueAtTime(this.nodes.master.gain.value, t);
-                    this.nodes.master.gain.exponentialRampToValueAtTime(0.001, t+0.5);
-                }
-
-                setTimeout(() => {
-                    if(this.nodes.srcL) this.nodes.srcL.stop();
-                    if(this.nodes.srcR) this.nodes.srcR.stop();
-                    if(this.nodes.srcN) this.nodes.srcN.stop();
-                    if(!instant) this.nodes.master.gain.value = 1;
-                }, instant ? 10 : 500);
-
-                this.playing = false;
-                document.getElementById('playBtn').innerText = "▶";
-                document.getElementById('playBtn').classList.remove('active');
-            },
-
-            update(f, b, n) {
-                if(!this.playing) return;
-                const t = this.ctx.currentTime;
-                this.nodes.srcL.frequency.setTargetAtTime(f, t, 0.1);
-                this.nodes.srcR.frequency.setTargetAtTime(f+b, t, 0.1);
-                this.nodes.noise.gain.setTargetAtTime(n, t, 0.1);
-            }
-        };
-
-        // --- VISUALIZADOR ---
-        const vis = {
-            cvs: document.getElementById('visualizer'),
-            ctx: document.getElementById('visualizer').getContext('2d'),
-            angle: 0,
-            init() { 
-                this.resize(); 
-                window.onresize = () => this.resize();
-            },
-            resize() { this.cvs.width = window.innerWidth; this.cvs.height = window.innerHeight; },
-            animate() {
-                if(!audio.playing) return;
-                requestAnimationFrame(() => this.animate());
-                
-                this.ctx.fillStyle = 'rgba(0,0,0,0.1)';
-                this.ctx.fillRect(0,0,this.cvs.width, this.cvs.height);
-
-                const data = new Uint8Array(audio.nodes.analyser.frequencyBinCount);
-                audio.nodes.analyser.getByteFrequencyData(data);
-                
-                // Calcular energía de bajos
-                let bass = 0; for(let i=0; i<40; i++) bass += data[i];
-                bass = bass / 40 / 255;
-
-                const cx = this.cvs.width/2, cy = this.cvs.height/2;
-                this.angle += 0.005 + (bass * 0.02);
-                
-                this.ctx.lineWidth = 2;
-                this.ctx.strokeStyle = `rgba(192, 132, 252, ${0.2 + bass})`;
-                
-                this.drawCirc(cx, cy, 100 + bass*80, 6, this.angle, bass);
-                this.drawCirc(cx, cy, 200 + bass*40, 8, -this.angle, bass);
-            },
-            drawCirc(x, y, r, sides, rot, ints) {
-                this.ctx.beginPath();
-                for(let i=0; i<=sides; i++) {
-                    const th = (i/sides)*Math.PI*2 + rot;
-                    const px = x + Math.cos(th)*r;
-                    const py = y + Math.sin(th)*r;
-                    if(i===0) this.ctx.moveTo(px,py); else this.ctx.lineTo(px,py);
-                }
-                this.ctx.closePath();
-                this.ctx.stroke();
-            }
-        };
-
-        // --- UI LOGIC ---
-        const sl = {
+        // --- INTERFAZ LOGIC ---
+        const ui = {
             f: document.getElementById('slFreq'),
             b: document.getElementById('slBeat'),
-            n: document.getElementById('slNoise')
-        };
-        const txt = {
-            f: document.getElementById('dispFreq'),
-            b: document.getElementById('dispBeat'),
-            n: document.getElementById('dispNoise'),
-            s: document.getElementById('status')
+            n: document.getElementById('slNoise'),
+            txtF: document.getElementById('valFreq'),
+            txtB: document.getElementById('valBeat'),
+            txtN: document.getElementById('valNoise'),
+            status: document.getElementById('statusText')
         };
 
-        function updateState() {
-            const f = parseFloat(sl.f.value);
-            const b = parseFloat(sl.b.value);
-            const n = parseFloat(sl.n.value);
+        function updateUI() {
+            const f = parseFloat(ui.f.value);
+            const b = parseFloat(ui.b.value);
+            const n = parseFloat(ui.n.value);
 
-            txt.f.innerText = f + " Hz";
-            txt.b.innerText = b + " Hz";
-            txt.n.innerText = Math.round(n*100) + "%";
+            ui.txtF.innerText = f + " Hz";
+            ui.txtB.innerText = b + " Hz";
+            ui.txtN.innerText = Math.round(n*200) + "%";
 
-            let st = "Resonancia Pura";
-            if(b>0 && b<4) st = "Delta (Sueño)";
-            else if(b>=4 && b<8) st = "Theta (Meditación)";
-            else if(b>=8 && b<13) st = "Alpha (Relax)";
-            else if(b>=13 && b<30) st = "Beta (Actividad)";
-            else if(b>=30) st = "Gamma (Foco)";
-            txt.s.innerText = st;
+            let st = "RESONANCIA PURA";
+            if(b>0 && b<4) st = "DELTA • SUEÑO";
+            else if(b>=4 && b<8) st = "THETA • MEDITACIÓN";
+            else if(b>=8 && b<14) st = "ALPHA • RELAX";
+            else if(b>=14 && b<30) st = "BETA • ACTIVIDAD";
+            else if(b>=30) st = "GAMMA • FOCO";
+            ui.status.innerText = st;
 
-            if(audio.playing) audio.update(f, b, n);
+            if(audio.isPlaying) audio.update(f, b, n);
         }
 
-        // Listeners
-        [sl.f, sl.b, sl.n].forEach(e => e.addEventListener('input', updateState));
-
+        [ui.f, ui.b, ui.n].forEach(el => el.addEventListener('input', updateUI));
+        
         document.getElementById('playBtn').onclick = () => {
-            if(audio.playing) audio.stop();
-            else audio.play(parseFloat(sl.f.value), parseFloat(sl.b.value), parseFloat(sl.n.value));
+            if(audio.isPlaying) audio.stop();
+            else audio.play(parseFloat(ui.f.value), parseFloat(ui.b.value), parseFloat(ui.n.value));
         };
 
-        // NAVIGATION
-        window.go = (id, btn) => {
-            document.querySelectorAll('.view').forEach(e => e.classList.remove('active'));
+        // NAVEGACIÓN
+        window.switchView = (id) => {
+            document.querySelectorAll('.view-section').forEach(e => e.classList.remove('active'));
             document.getElementById('view-'+id).classList.add('active');
-            document.querySelectorAll('.nav-btn').forEach(e => e.classList.remove('active'));
-            btn.classList.add('active');
+            
+            document.querySelectorAll('.nav-item').forEach(e => e.classList.remove('active'));
+            document.querySelector(`.nav-item[data-target="${id}"]`).classList.add('active');
+
+            // Cambio de color fractal
+            if(id === 'control') vis.hue = 270; // Violeta
+            if(id === 'presets') vis.hue = 45;  // Dorado
+            if(id === 'coherence') vis.hue = 150; // Verde
         };
 
         // PRESETS
-        window.load = (f, b) => {
-            sl.f.value = f; sl.b.value = b; updateState();
-            if(!audio.playing) audio.play(f, b, parseFloat(sl.n.value));
-            window.go('control', document.querySelector('.nav-btn'));
+        window.loadP = (f, b) => {
+            ui.f.value = f; ui.b.value = b; updateUI();
+            if(!audio.isPlaying) audio.play(f, b, parseFloat(ui.n.value));
+            switchView('control');
         };
 
         window.savePreset = () => {
             const name = document.getElementById('saveName').value;
             if(!name) return;
-            const list = JSON.parse(localStorage.getItem('aura')||'[]');
-            list.push({name, f:sl.f.value, b:sl.b.value});
-            localStorage.setItem('aura', JSON.stringify(list));
-            renderPresets();
-            alert('Guardado');
+            const list = JSON.parse(localStorage.getItem('auraP')||'[]');
+            list.push({name, f:ui.f.value, b:ui.b.value});
+            localStorage.setItem('auraP', JSON.stringify(list));
+            renderUserP();
+            alert("Guardado");
         };
 
-        function renderPresets() {
-            const d = document.getElementById('userList');
-            d.innerHTML = '';
-            const list = JSON.parse(localStorage.getItem('aura')||'[]');
+        function renderUserP() {
+            const div = document.getElementById('userList');
+            div.innerHTML = "";
+            const list = JSON.parse(localStorage.getItem('auraP')||'[]');
             list.forEach(p => {
                 const el = document.createElement('div');
                 el.className = 'chip';
                 el.innerHTML = `<strong>${p.name}</strong><span>${p.f}Hz + ${p.b}Hz</span>`;
-                el.onclick = () => load(p.f, p.b);
-                d.appendChild(el);
+                el.onclick = () => loadP(p.f, p.b);
+                div.appendChild(el);
             });
         }
 
-        // STARTUP
-        document.getElementById('start-btn').onclick = () => {
-            audio.init();
-            // Desbloquear AudioContext en móvil
-            if (audio.ctx && audio.ctx.state === 'suspended') audio.ctx.resume();
-            
-            const dummy = audio.ctx.createOscillator();
-            dummy.start(0); dummy.stop(0.001); // Sonido fantasma para despertar el motor
+        // COHERENCIA
+        let cohInt;
+        window.toggleCoherence = () => {
+            const btn = document.getElementById('coherenceBtn');
+            const txt = document.getElementById('breathText');
+            const circ = document.getElementById('breathCircle');
 
-            document.getElementById('overlay').style.opacity = 0;
-            setTimeout(() => {
-                document.getElementById('overlay').style.display = 'none';
-                document.getElementById('app-ui').style.opacity = 1;
-                document.getElementById('app-ui').style.pointerEvents = 'all';
-                vis.init();
-            }, 500);
+            if(btn.innerText === "DETENER") {
+                clearInterval(cohInt);
+                btn.innerText = "INICIAR SESIÓN";
+                btn.style.background = "var(--heart)";
+                txt.innerText = "LISTO";
+                circ.style.transform = "scale(1)";
+                audio.stop();
+            } else {
+                btn.innerText = "DETENER";
+                btn.style.background = "#ef4444";
+                
+                // Configurar Audio Relax
+                loadP(528, 10); 
+                ui.n.value = 0.15; updateUI();
+                switchView('coherence');
+
+                let inhale = true;
+                txt.innerText = "INHALA";
+                circ.style.transition = "transform 5.5s ease-in-out";
+                circ.style.transform = "scale(1.7)";
+
+                cohInt = setInterval(() => {
+                    inhale = !inhale;
+                    txt.innerText = inhale ? "INHALA" : "EXHALA";
+                    circ.style.transform = inhale ? "scale(1.7)" : "scale(1)";
+                }, 5500);
+            }
         };
 
-        renderPresets();
-        updateState();
+        // MODO ZEN
+        document.getElementById('zenBtn').onclick = () => document.body.classList.add('zen-mode');
+        document.addEventListener('click', e => {
+            if(document.body.classList.contains('zen-mode') && e.target.tagName !== 'BUTTON') {
+                document.body.classList.remove('zen-mode');
+            }
+        });
+
+        // ARRANQUE SEGURO (STARTUP)
+        document.getElementById('start-btn').onclick = () => {
+            // 1. Inicializar Audio Context
+            audio.init();
+            
+            // 2. Hack para despertar audio en iOS (tocar silencio breve)
+            if(audio.ctx) {
+                const osc = audio.ctx.createOscillator();
+                osc.connect(audio.ctx.destination);
+                osc.start(); osc.stop(audio.ctx.currentTime + 0.01);
+            }
+
+            // 3. Transición UI
+            document.getElementById('start-overlay').style.opacity = 0;
+            setTimeout(() => {
+                document.getElementById('start-overlay').style.display = 'none';
+                document.getElementById('ui-layer').style.opacity = 1;
+                document.getElementById('ui-layer').style.pointerEvents = 'all';
+                vis.init(); vis.start();
+            }, 600);
+        };
+
+        renderUserP();
+        updateUI();
 
     </script>
 </body>
 </html>
+
 
