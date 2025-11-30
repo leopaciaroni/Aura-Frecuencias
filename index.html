@@ -1,0 +1,550 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="theme-color" content="#050508">
+    <title>Aura v6.0 Master</title>
+    <style>
+        /* --- ESTILOS GENERALES --- */
+        :root {
+            --bg: #050508;
+            --glass: rgba(30, 30, 40, 0.9);
+            --border: rgba(255, 255, 255, 0.1);
+            --primary: #d8b4fe;
+            --accent: #2dd4bf;
+            --gold: #fcd34d;
+            --text: #f3f4f6;
+        }
+
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; user-select: none; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* FONDO */
+        #cymaticCanvas {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            z-index: 0; transition: all 0.8s ease; opacity: 0.5; pointer-events: none;
+        }
+        body.zen-active #cymaticCanvas {
+            z-index: 9999; opacity: 1; filter: contrast(1.5) brightness(1.2);
+            pointer-events: auto; cursor: pointer;
+        }
+
+        /* PANTALLA DE CARGA */
+        #start-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: #050508; z-index: 10000;
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            transition: opacity 0.5s ease;
+        }
+        
+        #start-btn {
+            background: linear-gradient(135deg, var(--primary), #a855f7);
+            color: #000; border: none; padding: 20px 60px;
+            font-size: 1.1rem; border-radius: 50px; font-weight: 800;
+            box-shadow: 0 0 30px rgba(216, 180, 254, 0.4);
+            letter-spacing: 2px; margin-top: 30px; cursor: pointer;
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse { 0% {transform:scale(1);} 50% {transform:scale(1.05);} 100% {transform:scale(1);} }
+
+        /* UI PRINCIPAL */
+        #ui-layer {
+            position: relative; z-index: 10; height: 100%; display: flex; flex-direction: column;
+            opacity: 0; transition: opacity 1s ease; pointer-events: none;
+        }
+        body.zen-active #ui-layer { opacity: 0 !important; pointer-events: none !important; }
+
+        .zen-hint {
+            position: fixed; top: 50%; left: 50%; transform: translate(-50%,-50%);
+            color: rgba(255,255,255,0.5); font-size: 1.2rem; pointer-events: none; opacity: 0; z-index: 10001;
+        }
+        body.zen-active .zen-hint { animation: fadeHint 3s forwards; }
+        @keyframes fadeHint { 0%,100%{opacity:0;} 20%,80%{opacity:1;} }
+
+        /* HEADER */
+        header { padding: 15px; text-align: center; background: linear-gradient(to bottom, rgba(0,0,0,0.9), transparent); }
+        .logo-img { max-height: 70px; display: block; margin: 0 auto 10px; filter: drop-shadow(0 0 10px rgba(216,180,254,0.3)); }
+        h1 { margin: 0; font-weight: 200; letter-spacing: 4px; font-size: 1.2rem; text-transform: uppercase; color: var(--primary); }
+        .badge { font-size: 0.7rem; color: var(--gold); border: 1px solid var(--gold); padding: 2px 8px; border-radius: 10px; opacity: 0.8; }
+
+        /* CONTENIDO */
+        #viewport { flex: 1; overflow-y: auto; padding: 10px 20px 100px; -webkit-overflow-scrolling: touch; }
+
+        .panel {
+            background: var(--glass); border: 1px solid var(--border); border-radius: 20px;
+            padding: 20px; margin-bottom: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+
+        /* CONTROLES */
+        .controls-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; }
+        #playBtn {
+            width: 70px; height: 70px; border-radius: 50%; background: rgba(255,255,255,0.1);
+            border: 1px solid rgba(255,255,255,0.2); font-size: 2rem; color: #fff;
+            display: flex; justify-content: center; align-items: center; cursor: pointer; transition: 0.3s;
+        }
+        #playBtn.playing { background: var(--primary); color: #000; box-shadow: 0 0 30px rgba(216,180,254,0.4); }
+        
+        .zen-btn { background: rgba(255,255,255,0.1); border: 1px solid var(--border); color: #fff; padding: 8px 12px; border-radius: 15px; font-size: 0.75rem; }
+
+        .slider-group { margin-bottom: 20px; }
+        .label-row { display: flex; justify-content: space-between; font-size: 0.8rem; color: #aaa; margin-bottom: 8px; }
+        .val { color: #fff; font-weight: bold; }
+        input[type=range] { width: 100%; accent-color: var(--primary); }
+
+        /* ATMOSFERA & ISO */
+        .extra-controls { display: flex; gap: 10px; margin-bottom: 15px; align-items: center; }
+        select { flex: 1; background: rgba(0,0,0,0.3); color: #fff; border: 1px solid var(--border); padding: 10px; border-radius: 10px; }
+        .iso-check { display: flex; align-items: center; gap: 5px; font-size: 0.8rem; color: #ccc; }
+        .iso-check input { width: 18px; height: 18px; accent-color: var(--accent); }
+
+        /* PRESETS GRID */
+        .cat-title { color: var(--gold); font-size: 0.9rem; margin: 20px 0 10px; text-transform: uppercase; letter-spacing: 1px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 5px; }
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .card {
+            background: rgba(255,255,255,0.05); border: 1px solid var(--border);
+            padding: 15px; border-radius: 15px; cursor: pointer; transition: 0.2s;
+        }
+        .card:active { background: rgba(255,255,255,0.1); }
+        .card h3 { margin: 0 0 5px; font-size: 0.9rem; color: #fff; }
+        .card p { margin: 0; font-size: 0.7rem; color: #aaa; }
+        
+        .card.sci { border-left: 3px solid var(--gold); }
+        .card.sol { border-left: 3px solid var(--primary); }
+        .card.wav { border-left: 3px solid var(--accent); }
+
+        /* COHERENCIA */
+        .breath-circle {
+            width: 150px; height: 150px; border-radius: 50%; border: 3px solid var(--accent);
+            margin: 30px auto; display: flex; justify-content: center; align-items: center;
+            font-size: 1.2rem; color: var(--accent); box-shadow: 0 0 30px rgba(45,212,191,0.2);
+            transition: transform 0.1s linear;
+        }
+
+        /* NAVBAR */
+        .nav {
+            position: fixed; bottom: 0; width: 100%; background: rgba(10,10,15,0.95);
+            border-top: 1px solid var(--border); display: flex; height: 70px; z-index: 50;
+        }
+        .nav-btn { flex: 1; border: none; background: none; color: #666; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; font-size: 0.65rem; }
+        .nav-btn.active { color: #fff; }
+        .nav-icon { font-size: 1.4rem; }
+
+        /* VISTAS */
+        .view { display: none; opacity: 0; animation: fadeUp 0.4s forwards; }
+        .view.active { display: block; }
+        @keyframes fadeUp { from{opacity:0;transform:translateY(20px);} to{opacity:1;transform:translateY(0);} }
+
+        /* GUIA */
+        .faq-item { border-bottom: 1px solid var(--border); padding: 15px 0; }
+        .faq-q { font-weight: bold; color: #fff; cursor: pointer; }
+        .faq-a { max-height: 0; overflow: hidden; transition: 0.3s; color: #aaa; font-size: 0.9rem; margin-top: 5px; }
+        .faq-item.open .faq-a { max-height: 500px; }
+
+    </style>
+</head>
+<body>
+
+    <canvas id="cymaticCanvas"></canvas>
+    <div class="zen-hint">Toca para salir</div>
+
+    <!-- PANTALLA DE ARRANQUE -->
+    <div id="start-overlay">
+        <img src="1000428918.png" alt="Logo" style="max-height: 90px; margin-bottom: 20px;">
+        <h1 style="color:var(--primary); font-size: 2rem; letter-spacing: 5px; margin-bottom: 5px;">AURA</h1>
+        <p style="color:#aaa; letter-spacing: 3px; font-size: 0.9rem;">VERSION 6.0</p>
+        <button id="start-btn" onclick="startApp()">CONECTAR</button>
+    </div>
+
+    <!-- APP UI -->
+    <div id="ui-layer">
+        <header>
+            <img src="1000428918.png" class="logo-img" alt="Logo">
+            <h1>AURA</h1>
+            <span class="badge" id="statusBadge">Sistema Listo</span>
+        </header>
+
+        <div id="viewport">
+            
+            <!-- CONTROL -->
+            <div id="v-control" class="view active">
+                <div class="panel">
+                    <div class="controls-top">
+                        <button class="zen-btn" onclick="toggleZen()">👁️ Zen</button>
+                        <div id="playBtn" onclick="togglePlay()">▶</div>
+                        <div style="width: 50px;"></div>
+                    </div>
+
+                    <div class="slider-group">
+                        <div class="label-row"><span>Frecuencia Base</span><span class="val" id="lblF">432 Hz</span></div>
+                        <input type="range" id="slF" min="60" max="1111" value="432">
+                    </div>
+                    <div class="slider-group">
+                        <div class="label-row"><span>Beat / Pulso</span><span class="val" id="lblB">7.8 Hz</span></div>
+                        <input type="range" id="slB" min="0.1" max="55" step="0.1" value="7.8">
+                    </div>
+                    
+                    <div class="extra-controls">
+                        <select id="selAtmos">
+                            <option value="ocean">🌊 Océano</option>
+                            <option value="forest">🌲 Bosque</option>
+                            <option value="air">🌬️ Aire</option>
+                        </select>
+                        <label class="iso-check"><input type="checkbox" id="chkIso"> Isocrónico</label>
+                    </div>
+                    <div class="slider-group">
+                        <div class="label-row"><span>Volumen Atmósfera</span><span class="val" id="lblN">20%</span></div>
+                        <input type="range" id="slN" min="0" max="0.4" step="0.01" value="0.1">
+                    </div>
+                </div>
+                
+                <div class="panel">
+                    <div style="display:flex; gap:10px;">
+                        <input type="text" id="saveName" placeholder="Guardar como..." style="flex:1; background:rgba(0,0,0,0.3); border:none; color:#fff; padding:10px; border-radius:10px;">
+                        <button onclick="savePreset()" style="background:var(--primary); color:#000; border:none; padding:0 20px; border-radius:10px; font-weight:bold;">Guardar</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- PRESETS -->
+            <div id="v-presets" class="view">
+                
+                <div class="cat-title">✨ Místico & Cuántico</div>
+                <div class="grid">
+                    <div class="card sci" onclick="load(1111,0)"><h3>1111 Hz</h3><p>Angel Number</p></div>
+                    <div class="card sci" onclick="load(111,0)"><h3>111 Hz</h3><p>Holy Frequency</p></div>
+                    <div class="card sci" onclick="load(963,40)"><h3>963 Hz + Gamma</h3><p>Activación Pineal</p></div>
+                    <div class="card sci" onclick="load(888,8)"><h3>888 Hz</h3><p>Abundancia</p></div>
+                </div>
+
+                <div class="cat-title">🧠 Ondas Cerebrales</div>
+                <div class="grid">
+                    <div class="card wav" onclick="load(200,40)"><h3>Gamma 40Hz</h3><p>Foco Extremo</p></div>
+                    <div class="card wav" onclick="load(200,14)"><h3>Beta 14Hz</h3><p>Concentración</p></div>
+                    <div class="card wav" onclick="load(200,10)"><h3>Alpha 10Hz</h3><p>Relax / Flow</p></div>
+                    <div class="card wav" onclick="load(200,4)"><h3>Theta 4Hz</h3><p>Meditación</p></div>
+                    <div class="card wav" onclick="load(200,2)"><h3>Delta 2Hz</h3><p>Sueño Profundo</p></div>
+                </div>
+
+                <div class="cat-title">🧬 Solfeggio Sagrado</div>
+                <div class="grid">
+                    <div class="card sol" onclick="load(174,2)"><h3>174 Hz</h3><p>Alivio Dolor</p></div>
+                    <div class="card sol" onclick="load(285,3)"><h3>285 Hz</h3><p>Tejidos</p></div>
+                    <div class="card sol" onclick="load(396,4)"><h3>396 Hz</h3><p>Liberar Miedo</p></div>
+                    <div class="card sol" onclick="load(417,4)"><h3>417 Hz</h3><p>Cambio</p></div>
+                    <div class="card sol" onclick="load(528,5)"><h3>528 Hz</h3><p>Milagros / ADN</p></div>
+                    <div class="card sol" onclick="load(639,6)"><h3>639 Hz</h3><p>Conexión</p></div>
+                    <div class="card sol" onclick="load(741,7)"><h3>741 Hz</h3><p>Intuición</p></div>
+                    <div class="card sol" onclick="load(852,8)"><h3>852 Hz</h3><p>Orden Espiritual</p></div>
+                    <div class="card sol" onclick="load(963,9)"><h3>963 Hz</h3><p>Unidad</p></div>
+                </div>
+                
+                <div class="cat-title">👤 Mis Guardados</div>
+                <div id="userList" class="grid"></div>
+            </div>
+
+            <!-- COHERENCIA -->
+            <div id="v-coherence" class="view">
+                <div class="panel" style="text-align:center; border-color:var(--accent);">
+                    <h2 style="color:var(--accent); margin:0;">Respiración</h2>
+                    <p style="font-size:0.8rem; color:#aaa;">Coherencia Cardíaca (5.5s)</p>
+                    <div class="breath-circle" id="bCircle">INHALA</div>
+                    <button id="btnCoh" onclick="toggleCoherence()" style="background:var(--accent); color:#000; border:none; padding:10px 30px; border-radius:20px; font-weight:bold; margin-top:20px;">INICIAR</button>
+                </div>
+            </div>
+
+            <!-- GUIA -->
+            <div id="v-guide" class="view">
+                <h2 style="color:#fff;">Guía de Uso</h2>
+                <div class="panel">
+                    <div class="faq-item" onclick="this.classList.toggle('open')">
+                        <div class="faq-q">1. ¿Qué es Isocrónico?</div>
+                        <div class="faq-a">Es un tono que se enciende y apaga rítmicamente. A diferencia de los binaurales, NO requiere audífonos para funcionar. Activa la casilla "Isocrónico" en el panel de control para sentir el pulso.</div>
+                    </div>
+                    <div class="faq-item" onclick="this.classList.toggle('open')">
+                        <div class="faq-q">2. ¿Qué es Binaural?</div>
+                        <div class="faq-a">Dos tonos ligeramente diferentes, uno en cada oído. El cerebro crea un tercer tono "fantasma". Requiere audífonos estéreo.</div>
+                    </div>
+                    <div class="faq-item" onclick="this.classList.toggle('open')">
+                        <div class="faq-q">3. Lista de Frecuencias</div>
+                        <div class="faq-a">
+                            <strong>174 Hz:</strong> Anestésico natural.<br>
+                            <strong>528 Hz:</strong> Reparación y Milagros.<br>
+                            <strong>1111 Hz:</strong> Conexión Angelical.<br>
+                            <strong>Gamma 40Hz:</strong> Memoria y Cognición.<br>
+                            <strong>Alpha 10Hz:</strong> Calma y Aprendizaje.
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <nav class="nav">
+            <button class="nav-btn active" onclick="go('control',this)"><span class="nav-icon">🎚️</span>Control</button>
+            <button class="nav-btn" onclick="go('presets',this)"><span class="nav-icon">💠</span>Presets</button>
+            <button class="nav-btn" onclick="go('coherence',this)"><span class="nav-icon">💚</span>Coherencia</button>
+            <button class="nav-btn" onclick="go('guide',this)"><span class="nav-icon">ℹ️</span>Guía</button>
+        </nav>
+    </div>
+
+    <script>
+        // --- 1. BOOT SYSTEM ---
+        function startApp() {
+            document.getElementById('start-overlay').style.opacity = 0;
+            setTimeout(() => {
+                document.getElementById('start-overlay').style.display = 'none';
+                document.getElementById('ui-layer').style.opacity = 1;
+                document.getElementById('ui-layer').style.pointerEvents = 'all';
+                vis.init(); vis.start();
+            }, 500);
+            try { audio.init(); } catch(e) { console.log(e); }
+        }
+
+        // --- 2. MOTOR DE AUDIO (MASTER) ---
+        const audio = {
+            ctx: null, nodes: {}, playing: false, iso: false, atmos: 'ocean',
+            init() {
+                if(this.ctx) { if(this.ctx.state === 'suspended') this.ctx.resume(); return; }
+                const AC = window.AudioContext || window.webkitAudioContext;
+                this.ctx = new AC();
+                this.nodes.master = this.ctx.createGain();
+                this.nodes.analyser = this.ctx.createAnalyser(); this.nodes.analyser.fftSize = 2048;
+                this.nodes.master.connect(this.ctx.destination);
+                this.nodes.master.connect(this.nodes.analyser);
+                
+                // Mezcla
+                this.nodes.toneBus = this.ctx.createGain(); 
+                this.nodes.atmosBus = this.ctx.createGain(); 
+                this.nodes.isoGate = this.ctx.createGain(); // El nodo que "pulsa"
+                
+                // Ruta: Tone -> IsoGate -> Master
+                this.nodes.toneBus.connect(this.nodes.isoGate);
+                this.nodes.isoGate.connect(this.nodes.master);
+                this.nodes.atmosBus.connect(this.nodes.master); // Atmosfera va directa, sin pulso
+                
+                // Buffer silencioso iOS
+                const b = this.ctx.createBuffer(1,1,22050); 
+                const s = this.ctx.createBufferSource(); s.buffer=b; s.connect(this.ctx.destination); s.start(0);
+            },
+            getBuff(type) {
+                const sz = this.ctx.sampleRate * 2; const b = this.ctx.createBuffer(1, sz, this.ctx.sampleRate); const d = b.getChannelData(0);
+                if(type==='air') for(let i=0;i<sz;i++) d[i]=(Math.random()*2-1)*0.05;
+                else { 
+                    let last=0; for(let i=0;i<sz;i++) { 
+                        const w = Math.random()*2-1; 
+                        d[i]=(last + (0.02*w))/1.02; last=d[i]; d[i]*=3.5; 
+                    } 
+                }
+                return b;
+            },
+            play(f,b,n,iso,atm) {
+                if(!this.ctx) this.init();
+                if(this.playing) this.stop(true);
+                this.iso = iso; this.atmos = atm;
+
+                this.nodes.oscL = this.ctx.createOscillator();
+                this.nodes.oscR = this.ctx.createOscillator();
+                const pL = this.ctx.createStereoPanner(); const pR = this.ctx.createStereoPanner();
+
+                if(iso) {
+                    // ISOCRÓNICO: Onda cuadrada modulando el volumen
+                    this.nodes.oscL.frequency.value=f; this.nodes.oscR.frequency.value=f;
+                    pL.pan.value=0; pR.pan.value=0;
+                    
+                    this.nodes.lfo = this.ctx.createOscillator();
+                    this.nodes.lfo.type = 'square'; // Pulso duro
+                    this.nodes.lfo.frequency.value = b;
+                    
+                    // LFO modula Gain entre 0 y 1
+                    this.nodes.isoGate.gain.value = 0.5; // Base
+                    this.nodes.lfoGain = this.ctx.createGain(); 
+                    this.nodes.lfoGain.gain.value = 0.5; // Amplitud
+                    
+                    this.nodes.lfo.connect(this.nodes.lfoGain);
+                    this.nodes.lfoGain.connect(this.nodes.isoGate.gain);
+                    this.nodes.lfo.start();
+                } else {
+                    // BINAURAL: Diferencia de fase
+                    this.nodes.oscL.frequency.value=f; this.nodes.oscR.frequency.value=f+b;
+                    pL.pan.value=-1; pR.pan.value=1;
+                    
+                    // Reset Gate
+                    if(this.nodes.lfo) { try{this.nodes.lfo.stop()}catch(e){} }
+                    this.nodes.isoGate.gain.cancelScheduledValues(0);
+                    this.nodes.isoGate.gain.value=1;
+                }
+
+                this.nodes.oscL.connect(pL).connect(this.nodes.toneBus);
+                this.nodes.oscR.connect(pR).connect(this.nodes.toneBus);
+
+                this.nodes.srcAtm = this.ctx.createBufferSource();
+                this.nodes.srcAtm.buffer = this.getBuff(atm);
+                this.nodes.srcAtm.loop = true;
+                
+                // Filtro Atmosfera
+                const filt = this.ctx.createBiquadFilter();
+                if(atm==='ocean') { filt.type='lowpass'; filt.frequency.value=400; }
+                else if(atm==='forest') { filt.type='lowpass'; filt.frequency.value=1200; }
+                else { filt.type='highpass'; filt.frequency.value=600; }
+                this.nodes.srcAtm.connect(filt).connect(this.nodes.atmosBus);
+
+                this.upd(f,b,n);
+                this.nodes.toneBus.gain.setValueAtTime(0,this.ctx.currentTime);
+                this.nodes.toneBus.gain.linearRampToValueAtTime(0.6,this.ctx.currentTime+0.3);
+                
+                this.nodes.oscL.start(); this.nodes.oscR.start(); this.nodes.srcAtm.start();
+                this.playing = true;
+                document.getElementById('playBtn').innerText = "■";
+                document.getElementById('playBtn').classList.add('playing');
+                vis.start();
+            },
+            stop(inst) {
+                if(!this.playing) return;
+                const t = this.ctx.currentTime;
+                if(!inst) { 
+                    this.nodes.master.gain.setValueAtTime(this.nodes.master.gain.value, t);
+                    this.nodes.master.gain.linearRampToValueAtTime(0, t+0.1); 
+                }
+                setTimeout(()=>{
+                    try{ this.nodes.oscL.stop(); this.nodes.oscR.stop(); this.nodes.srcAtm.stop(); 
+                         if(this.nodes.lfo) this.nodes.lfo.stop(); }catch(e){}
+                    if(!inst) { this.nodes.master.gain.value=1; }
+                }, inst?0:150);
+                this.playing = false;
+                document.getElementById('playBtn').innerText = "▶";
+                document.getElementById('playBtn').classList.remove('playing');
+            },
+            upd(f,b,n) {
+                if(!this.playing) return;
+                const t = this.ctx.currentTime;
+                this.nodes.oscL.frequency.setTargetAtTime(f,t,0.1);
+                if(this.iso) {
+                    this.nodes.oscR.frequency.setTargetAtTime(f,t,0.1);
+                    this.nodes.lfo.frequency.setTargetAtTime(b,t,0.1);
+                } else {
+                    this.nodes.oscR.frequency.setTargetAtTime(f+b,t,0.1);
+                }
+                this.nodes.atmosBus.gain.setTargetAtTime(n,t,0.2);
+            }
+        };
+
+        // --- 3. VISUALIZADOR ---
+        const vis = {
+            c: document.getElementById('cymaticCanvas'), ctx: null, run: false, ang: 0, hue: 270,
+            init() { 
+                this.ctx=this.c.getContext('2d'); this.res(); window.onresize=()=>this.res(); this.c.onclick=toggleZen; 
+            },
+            res() { this.c.width=window.innerWidth; this.c.height=window.innerHeight; },
+            start() { if(!this.run){this.run=true; this.loop();} },
+            loop() {
+                if(!this.run) return; requestAnimationFrame(()=>this.loop());
+                this.ctx.fillStyle='rgba(0,0,0,0.1)'; this.ctx.fillRect(0,0,this.c.width,this.c.height);
+                if(!audio.playing) return;
+                const d=new Uint8Array(audio.nodes.analyser.frequencyBinCount); audio.nodes.analyser.getByteFrequencyData(d);
+                let v = d[10]/255; 
+                this.ang += 0.005 + v*0.01;
+                this.ctx.lineWidth = 1 + v*5;
+                const s = document.body.classList.contains('zen-active') ? '90%' : '60%';
+                this.ctx.strokeStyle = `hsla(${this.hue}, ${s}, 60%, ${0.2+v})`;
+                const cx=this.c.width/2, cy=this.c.height/2;
+                const sc = document.body.classList.contains('zen-active') ? 1.5 : 1;
+                this.draw(cx,cy, (100+v*100)*sc, 8, this.ang, v);
+                this.draw(cx,cy, (200+v*50)*sc, 16, -this.ang, v);
+            },
+            draw(x,y,r,s,rot,i) {
+                this.ctx.beginPath();
+                for(let j=0; j<=s; j++){
+                    const th = (j/s)*Math.PI*2 + rot;
+                    const px = x + Math.cos(th)*r + Math.cos(th*5)*(r*0.1*i);
+                    const py = y + Math.sin(th)*r + Math.sin(th*5)*(r*0.1*i);
+                    if(j===0) this.ctx.moveTo(px,py); else this.ctx.lineTo(px,py);
+                }
+                this.ctx.closePath(); this.ctx.stroke();
+            }
+        };
+
+        // --- 4. UI LOGIC ---
+        const ui = { f:document.getElementById('slF'), b:document.getElementById('slB'), n:document.getElementById('slN'), iso:document.getElementById('chkIso'), atm:document.getElementById('selAtmos') };
+        
+        function updateUI() {
+            document.getElementById('lblF').innerText = ui.f.value + " Hz";
+            document.getElementById('lblB').innerText = ui.b.value + " Hz";
+            document.getElementById('lblN').innerText = Math.round(ui.n.value*250) + "%";
+            document.getElementById('statusBadge').innerText = ui.iso.checked ? "Isocrónico" : "Binaural";
+            if(audio.playing) audio.upd(parseFloat(ui.f.value), parseFloat(ui.b.value), parseFloat(ui.n.value));
+        }
+        [ui.f,ui.b,ui.n,ui.iso].forEach(e=>e.oninput=updateUI);
+        ui.atm.onchange=()=>{ if(audio.playing) togglePlay() };
+
+        function togglePlay() {
+            if(audio.playing) audio.stop();
+            else audio.play(parseFloat(ui.f.value), parseFloat(ui.b.value), parseFloat(ui.n.value), ui.iso.checked, ui.atm.value);
+        }
+
+        function toggleZen() { document.body.classList.toggle('zen-active'); }
+
+        window.go = (id, btn) => {
+            document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+            document.getElementById('v-'+id).classList.add('active');
+            document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+            btn.classList.add('active');
+            vis.hue = {control:270, presets:45, coherence:160, guide:200}[id] || 270;
+        };
+
+        window.load = (f,b) => {
+            ui.f.value=f; ui.b.value=b; updateUI(); 
+            if(!audio.playing) togglePlay(); 
+            go('control', document.querySelectorAll('.nav-btn')[0]);
+        };
+
+        window.savePreset = () => {
+            const name = document.getElementById('saveName').value; if(!name) return;
+            const l = JSON.parse(localStorage.getItem('aura')||'[]');
+            l.push({name:name, f:ui.f.value, b:ui.b.value});
+            localStorage.setItem('aura', JSON.stringify(l));
+            renderUserP(); document.getElementById('saveName').value="";
+        };
+
+        function renderUserP() {
+            const d = document.getElementById('userList'); d.innerHTML="";
+            JSON.parse(localStorage.getItem('aura')||'[]').forEach(p=>{
+                const el = document.createElement('div'); el.className='card sol';
+                el.innerHTML = `<h3>${p.name}</h3><p>${p.f}Hz + ${p.b}Hz</p>`;
+                el.onclick=()=>load(p.f, p.b); d.appendChild(el);
+            });
+        }
+
+        let cohT;
+        function toggleCoherence() {
+            const btn = document.getElementById('btnCoh'), txt = document.getElementById('bCircle');
+            if(btn.innerText==="INICIAR") {
+                btn.innerText="DETENER"; btn.style.background="#ef4444";
+                load(528,10); ui.n.value=0.15; updateUI(); go('coherence', document.querySelectorAll('.nav-btn')[2]);
+                let inh = true;
+                cohT = setInterval(()=>{
+                    inh=!inh; txt.innerText=inh?"INHALA":"EXHALA";
+                    txt.style.transform=inh?"scale(1.5)":"scale(1)";
+                }, 5500);
+            } else {
+                clearInterval(cohT); btn.innerText="INICIAR"; btn.style.background="var(--accent)";
+                txt.innerText="LISTO"; txt.style.transform="scale(1)"; audio.stop();
+            }
+        }
+
+        renderUserP(); updateUI();
+    </script>
+</body>
+</html>
+
+
