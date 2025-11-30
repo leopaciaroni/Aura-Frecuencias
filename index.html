@@ -1,0 +1,661 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="theme-color" content="#000000">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>Aura Evolution</title>
+    <style>
+        /* --- ESTILOS EVOLUTION --- */
+        :root {
+            --bg-dark: #050508;
+            --glass: rgba(25, 25, 35, 0.85);
+            --glass-border: rgba(255, 255, 255, 0.12);
+            --primary: #d8b4fe; /* Violeta Luz */
+            --accent: #2dd4bf;   /* Turquesa Sanación */
+            --gold: #fcd34d;    /* Dorado Místico */
+            --text: #f3f4f6;
+            --text-muted: #9ca3af;
+        }
+
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; user-select: none; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: var(--bg-dark);
+            color: var(--text);
+            margin: 0;
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* FONDO FRACTAL */
+        #cymaticCanvas {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            z-index: 0; transition: filter 0.8s, opacity 0.5s; opacity: 0.6; pointer-events: none;
+        }
+        
+        /* ZEN MODE: Mandala al frente */
+        body.zen-active #cymaticCanvas {
+            z-index: 9999; /* Superposición total */
+            opacity: 1;
+            filter: contrast(1.4) brightness(1.2);
+            pointer-events: auto; /* Permitir click para salir */
+            cursor: pointer;
+        }
+
+        /* PANTALLA DE ARRANQUE */
+        #start-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: #000; z-index: 20000;
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            transition: opacity 0.5s ease, visibility 0.5s;
+        }
+        
+        #start-btn {
+            background: linear-gradient(135deg, var(--primary), #8b5cf6);
+            color: #000; border: none; padding: 22px 55px; font-weight: 800;
+            font-size: 1.1rem; border-radius: 50px; cursor: pointer;
+            box-shadow: 0 0 40px rgba(216, 180, 254, 0.4);
+            text-transform: uppercase; letter-spacing: 2px;
+            animation: pulse 2s infinite; margin-top: 30px;
+            -webkit-appearance: none;
+        }
+        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); } }
+        
+        .skip-link {
+            margin-top: 30px; color: var(--text-muted); text-decoration: underline; font-size: 0.75rem; cursor: pointer; padding: 20px;
+        }
+
+        /* CAPA UI PRINCIPAL */
+        #ui-layer {
+            position: relative; z-index: 10; height: 100%;
+            display: flex; flex-direction: column;
+            opacity: 0; pointer-events: none; transition: opacity 1s ease;
+        }
+        
+        /* Ocultar UI en Zen Mode */
+        body.zen-active #ui-layer { opacity: 0 !important; pointer-events: none !important; }
+
+        .zen-instruction {
+            position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            color: rgba(255,255,255,0.8); pointer-events: none; opacity: 0; font-size: 1.2rem; z-index: 10001;
+            text-shadow: 0 2px 10px rgba(0,0,0,0.8); font-weight: 300; letter-spacing: 2px; text-align: center;
+        }
+        body.zen-active .zen-instruction { animation: blinkOut 4s forwards; }
+        @keyframes blinkOut { 0% {opacity:0} 20% {opacity:1} 70% {opacity:1} 100% {opacity:0} }
+
+
+        /* HEADER & LOGO */
+        header {
+            padding: 15px; text-align: center;
+            background: linear-gradient(to bottom, rgba(0,0,0,0.95), transparent);
+            padding-bottom: 25px;
+        }
+        h1 { margin: 0; font-weight: 200; letter-spacing: 5px; font-size: 1.3rem; text-transform: uppercase; 
+             background: linear-gradient(to right, #fff, var(--primary)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        
+        .app-logo {
+            max-height: 80px; /* Tamaño del logo */
+            margin: 15px auto 10px; display: block;
+            filter: drop-shadow(0 0 10px rgba(216, 180, 254, 0.3));
+        }
+
+        .status-badge {
+            display: inline-block; font-size: 0.7rem; color: var(--gold); 
+            background: rgba(252, 211, 77, 0.1); border: 1px solid rgba(252, 211, 77, 0.3);
+            padding: 4px 12px; border-radius: 20px;
+            text-transform: uppercase; letter-spacing: 1px;
+        }
+
+        /* VIEWPORT */
+        #main-viewport {
+            flex: 1; overflow-y: auto; padding: 10px 20px 100px 20px;
+            pointer-events: auto; scroll-behavior: smooth;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        /* PANELES & CONTROLES */
+        .panel {
+            background: var(--glass); backdrop-filter: blur(25px); -webkit-backdrop-filter: blur(25px);
+            border: 1px solid var(--glass-border); border-radius: 24px; padding: 25px 20px; margin-bottom: 20px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+        }
+
+        .play-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; }
+        #playBtn {
+            width: 80px; height: 80px; border-radius: 50%;
+            border: 1px solid rgba(255,255,255,0.15); background: rgba(255,255,255,0.05); 
+            color: #fff; font-size: 2.2rem; cursor: pointer; transition: 0.3s; 
+            display: flex; align-items: center; justify-content: center; padding-left: 5px;
+        }
+        #playBtn.playing {
+            background: var(--primary); color: #000; border-color: var(--primary); padding-left: 0;
+            box-shadow: 0 0 40px rgba(192, 132, 252, 0.5);
+        }
+
+        #zenBtn {
+            background: rgba(255,255,255,0.1); border: 1px solid var(--glass-border); 
+            color: var(--text); padding: 10px 16px; border-radius: 20px; font-size: 0.8rem;
+            display: flex; align-items: center; gap: 6px; cursor: pointer; transition: 0.2s;
+        }
+        #zenBtn:active { background: rgba(255,255,255,0.2); }
+
+        /* SWITCH ISOCRÓNICO */
+        .iso-switch-container {
+            display: flex; align-items: center; justify-content: space-between;
+            margin-bottom: 25px; background: rgba(0,0,0,0.2); padding: 10px 15px; border-radius: 15px;
+        }
+        .switch { position: relative; display: inline-block; width: 46px; height: 24px; }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider-toggle {
+            position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0;
+            background-color: #444; transition: .4s; border-radius: 24px;
+        }
+        .slider-toggle:before {
+            position: absolute; content: ""; height: 18px; width: 18px; left: 3px; bottom: 3px;
+            background-color: white; transition: .4s; border-radius: 50%;
+        }
+        input:checked + .slider-toggle { background-color: var(--accent); }
+        input:checked + .slider-toggle:before { transform: translateX(22px); }
+
+        /* SLIDERS & SELECTS */
+        .slider-wrap { margin-bottom: 25px; }
+        .slider-head { display: flex; justify-content: space-between; font-size: 0.85rem; margin-bottom: 12px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; }
+        .val { color: #fff; font-weight: 700; }
+        input[type=range] { width: 100%; -webkit-appearance: none; background: transparent; padding: 10px 0; }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none; height: 22px; width: 22px; border-radius: 50%;
+            background: var(--primary); margin-top: -9px; box-shadow: 0 0 15px var(--primary); border: 2px solid #fff;
+        }
+        input[type=range]::-webkit-slider-runnable-track { width: 100%; height: 4px; background: rgba(255,255,255,0.15); border-radius: 2px; }
+
+        select.atmos-select {
+            width: 100%; background: rgba(0,0,0,0.3); color: #fff; border: 1px solid var(--glass-border);
+            padding: 12px; border-radius: 12px; font-size: 0.9rem; outline: none; margin-bottom: 15px;
+            -webkit-appearance: none; /* Safari fix */
+        }
+
+        /* NAVBAR */
+        .navbar {
+            position: fixed; bottom: 0; width: 100%; height: 75px;
+            background: rgba(8, 8, 12, 0.95); backdrop-filter: blur(20px);
+            border-top: 1px solid var(--glass-border);
+            display: flex; justify-content: space-around; align-items: center;
+            padding-bottom: 10px; z-index: 50;
+        }
+        .nav-item {
+            background: none; border: none; color: #666;
+            display: flex; flex-direction: column; align-items: center; gap: 5px;
+            font-size: 0.65rem; width: 100%; transition: 0.3s;
+        }
+        .nav-icon { font-size: 1.4rem; transition: 0.3s; }
+        .nav-item.active { color: #fff; }
+        .nav-item.active .nav-icon { transform: translateY(-4px); }
+        .nav-item[data-target="control"].active .nav-icon { color: var(--primary); text-shadow: 0 0 12px var(--primary); }
+        .nav-item[data-target="presets"].active .nav-icon { color: var(--gold); text-shadow: 0 0 12px var(--gold); }
+        .nav-item[data-target="coherence"].active .nav-icon { color: var(--accent); text-shadow: 0 0 12px var(--accent); }
+        .nav-item[data-target="guide"].active .nav-icon { color: #fff; text-shadow: 0 0 12px #fff; }
+
+        /* VISTAS & COMPONENTES */
+        .view-section { display: none; opacity: 0; animation: fadeUp 0.4s forwards; }
+        .view-section.active { display: block; }
+        @keyframes fadeUp { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
+
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .chip {
+            background: rgba(255,255,255,0.03); border: 1px solid var(--glass-border);
+            padding: 15px; border-radius: 16px; text-align: left; transition: 0.2s; position: relative; overflow: hidden;
+        }
+        .chip:active { background: rgba(255,255,255,0.08); transform: scale(0.98); }
+        .chip strong { display: block; color: #fff; margin-bottom: 5px; font-size: 0.9rem; }
+        .chip span { font-size: 0.7rem; color: var(--text-muted); }
+        .chip.solfeggio { border-color: rgba(216, 180, 254, 0.3); }
+        .chip.science { border-color: rgba(252, 211, 77, 0.3); }
+
+        .coherence-circle {
+            width: 160px; height: 160px; border-radius: 50%;
+            background: rgba(45, 212, 191, 0.05); border: 3px solid var(--accent);
+            margin: 30px auto; display: flex; justify-content: center; align-items: center;
+            font-size: 1.1rem; color: var(--accent); letter-spacing: 3px; font-weight: 300;
+            box-shadow: 0 0 30px rgba(45, 212, 191, 0.2); transition: transform 0.1s;
+        }
+
+        /* GUÍA (ACCORDION) */
+        .guide-item { border-bottom: 1px solid var(--glass-border); }
+        .guide-header {
+            padding: 15px 0; cursor: pointer; display: flex; justify-content: space-between; align-items: center; font-weight: 600;
+        }
+        .guide-content {
+            max-height: 0; overflow: hidden; transition: max-height 0.3s ease-out; color: var(--text-muted); font-size: 0.9rem; line-height: 1.6;
+        }
+        .guide-item.open .guide-content { max-height: 600px; padding-bottom: 15px; }
+        .guide-arrow { transition: 0.3s; }
+        .guide-item.open .guide-arrow { transform: rotate(180deg); color: var(--primary); }
+
+    </style>
+</head>
+<body>
+
+    <!-- FONDO FRACTAL INTERACTIVO -->
+    <canvas id="cymaticCanvas"></canvas>
+    <div class="zen-instruction">Toca la pantalla para salir</div>
+
+    <!-- PANTALLA DE ARRANQUE (OPTIMIZADA) -->
+    <div id="start-overlay">
+        <!-- Logo -->
+        <img src="1000428918.png" alt="Logo" style="max-height: 100px; margin-bottom: 20px; filter: drop-shadow(0 0 15px rgba(216, 180, 254, 0.5));">
+        <h1 style="font-size: 2rem; margin: 0 0 5px; letter-spacing: 6px; color: var(--primary);">AURA</h1>
+        <p style="color: var(--text-muted); font-size: 0.9rem; letter-spacing: 3px; margin-top:0;">EVOLUTION</p>
+        
+        <button id="start-btn" ontouchstart="startApp()">CONECTAR</button>
+        <p style="color:#666; font-size: 0.75rem; margin-top: 30px;">Usa audífonos para mejores resultados</p>
+        
+        <div class="skip-link" onclick="forceEnter()">Si no avanza, toca aquí</div>
+    </div>
+
+    <!-- UI LAYER PRINCIPAL -->
+    <div id="ui-layer">
+        <header>
+            <h1>AURA EVOLUTION</h1>
+            <!-- Logo pequeño en header -->
+            <img src="1000428918.png" alt="Logo Aura" class="app-logo" style="max-height: 50px;">
+            <div id="statusText" class="status-badge">Sistema Listo</div>
+        </header>
+
+        <div id="main-viewport">
+            
+            <!-- VISTA 1: CONTROL -->
+            <div id="view-control" class="view-section active">
+                <div class="panel">
+                    <div class="play-row">
+                        <button id="zenBtn">👁️ Zen Mode</button>
+                        <div id="playBtn">▶</div>
+                        <div style="width: 80px;"></div>
+                    </div>
+
+                    <!-- Toggle Isocrónico -->
+                    <div class="iso-switch-container">
+                        <span style="font-size: 0.8rem; color: #ddd;">Isocrónico (Pulsos)</span>
+                        <label class="switch">
+                            <input type="checkbox" id="isoToggle">
+                            <span class="slider-toggle"></span>
+                        </label>
+                    </div>
+
+                    <div class="slider-wrap">
+                        <div class="slider-head"><span>Frecuencia Base</span> <span class="val" id="valFreq">432 Hz</span></div>
+                        <input type="range" id="slFreq" min="60" max="963" value="432">
+                    </div>
+                    <div class="slider-wrap">
+                        <div class="slider-head"><span>Beat / Pulso</span> <span class="val" id="valBeat">7.8 Hz</span></div>
+                        <input type="range" id="slBeat" min="0.1" max="45" step="0.1" value="7.8">
+                    </div>
+                    
+                    <div class="slider-wrap" style="margin-bottom: 5px;">
+                         <div class="slider-head"><span>Atmósfera Natural</span> <span class="val" id="valNoise">20%</span></div>
+                    </div>
+                    <!-- Selector de Atmósfera -->
+                    <select id="atmosSelect" class="atmos-select">
+                        <option value="ocean">🌊 Océano Profundo</option>
+                        <option value="forest">🌲 Bosque Lluvioso</option>
+                        <option value="air">🌬️ Aire Puro</option>
+                    </select>
+                    <input type="range" id="slNoise" min="0" max="0.4" step="0.01" value="0.1">
+                </div>
+
+                <div class="panel" style="padding: 15px;">
+                    <div style="display:flex; gap:10px;">
+                        <input type="text" id="saveName" placeholder="Nombre..." style="flex:1; background:rgba(255,255,255,0.05); border:none; color:#fff; padding:12px; border-radius:12px;">
+                        <button onclick="savePreset()" style="background:var(--primary); color:#000; border:none; padding:0 20px; border-radius:12px; font-weight:bold;">💾</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- VISTA 2: PRESETS -->
+            <div id="view-presets" class="view-section">
+                <h3 style="color:var(--gold); font-weight:300; margin:0 0 15px;">Ciencia y Bienestar</h3>
+                <div class="grid-2">
+                    <div class="chip science" onclick="loadP(40, 40, false)"><strong>Gamma (40Hz)</strong><span>Foco, Memoria</span></div>
+                    <div class="chip science" onclick="loadP(10, 10, false)"><strong>Alpha (10Hz)</strong><span>Calma despierta</span></div>
+                    <div class="chip science" onclick="loadP(432, 7.83, false)"><strong>Schumann</strong><span>Grounding</span></div>
+                    <div class="chip science" onclick="loadP(528, 0.5, false)"><strong>Sueño Profundo</strong><span>528Hz + Delta</span></div>
+                </div>
+
+                <h3 style="color:var(--primary); font-weight:300; margin:25px 0 15px;">Solfeggio Sagrado</h3>
+                <div class="grid-2">
+                    <div class="chip solfeggio" onclick="loadP(174, 2, false)"><strong>174 Hz</strong><span>Alivio dolor</span></div>
+                    <div class="chip solfeggio" onclick="loadP(285, 3, false)"><strong>285 Hz</strong><span>Tejidos</span></div>
+                    <div class="chip solfeggio" onclick="loadP(396, 4, false)"><strong>396 Hz</strong><span>Liberar miedo</span></div>
+                    <div class="chip solfeggio" onclick="loadP(528, 5, false)"><strong>528 Hz</strong><span>Milagros/ADN</span></div>
+                    <div class="chip solfeggio" onclick="loadP(852, 8, false)"><strong>852 Hz</strong><span>Intuición</span></div>
+                    <div class="chip solfeggio" onclick="loadP(963, 10, false)"><strong>963 Hz</strong><span>Divinidad</span></div>
+                </div>
+                
+                <h3 style="color:#fff; font-weight:300; margin:25px 0 15px;">Mis Guardados</h3>
+                <div id="userList" class="grid-2"></div>
+            </div>
+
+            <!-- VISTA 3: COHERENCIA -->
+            <div id="view-coherence" class="view-section">
+                <div class="panel" style="text-align:center; padding: 40px 20px; border-color: rgba(45, 212, 191, 0.3);">
+                    <h2 style="color:var(--accent); font-weight:300; margin:0; letter-spacing: 2px;">COHERENCIA</h2>
+                    <p style="font-size:0.8rem; color:var(--text-muted); margin-top: 10px;">Sincroniza respiración y latido.</p>
+                    
+                    <div class="coherence-circle" id="breathCircle">
+                        <span id="breathText">LISTO</span>
+                    </div>
+
+                    <button id="coherenceBtn" onclick="toggleCoherence()" style="background:var(--accent); color:#000; border:none; padding:15px 40px; border-radius:30px; font-weight:800; font-size:1rem; margin-top:15px; box-shadow: 0 0 25px rgba(45, 212, 191, 0.4); transition:0.3s;">INICIAR</button>
+                </div>
+                
+                <div class="chip" style="background:rgba(45, 212, 191, 0.05); border-color: rgba(45, 212, 191, 0.2);">
+                    <strong style="color:var(--accent)">Instrucción</strong>
+                    <span>Inhala al crecer el círculo, exhala al contraerse (ciclo de 11s). Audio: 528Hz + Alpha.</span>
+                </div>
+            </div>
+
+            <!-- VISTA 4: GUÍA -->
+            <div id="view-guide" class="view-section">
+                <h2 style="font-weight: 300; color: #fff; margin-bottom: 20px;">Guía de Usuario</h2>
+                <div class="panel" style="padding: 10px 20px;">
+                    
+                    <div class="guide-item">
+                        <div class="guide-header" onclick="toggleGuide(this)"><span>1. Inicio Rápido</span><span class="guide-arrow">▼</span></div>
+                        <div class="guide-content">
+                            Usa audífonos estéreo. Dale Play ▶. Ajusta "Frecuencia Base" (tono audible) y "Beat" (efecto cerebral).
+                        </div>
+                    </div>
+                    
+                    <div class="guide-item">
+                        <div class="guide-header" onclick="toggleGuide(this)"><span>2. Binaural vs. Isocrónico</span><span class="guide-arrow">▼</span></div>
+                        <div class="guide-content">
+                            <strong style="color:var(--primary)">Binaural:</strong> Requiere audífonos. Tono continuo y suave. El pulso se crea en el cerebro.<br><br>
+                            <strong style="color:var(--accent)">Isocrónico:</strong> Tono rítmico que se enciende/apaga. Funciona con altavoces. Efecto estimulante.
+                        </div>
+                    </div>
+
+                    <div class="guide-item">
+                        <div class="guide-header" onclick="toggleGuide(this)"><span>3. Ondas Cerebrales</span><span class="guide-arrow">▼</span></div>
+                        <div class="guide-content">
+                            • <strong>DELTA (0.5-4Hz):</strong> Sueño profundo, sanación.<br>
+                            • <strong>THETA (4-8Hz):</strong> Meditación, creatividad.<br>
+                            • <strong>ALPHA (8-14Hz):</strong> Relax, calma.<br>
+                            • <strong>BETA (14-30Hz):</strong> Foco, trabajo.<br>
+                            • <strong>GAMMA (30+Hz):</strong> Cognición alta.
+                        </div>
+                    </div>
+                    
+                    <div class="guide-item" style="border-bottom: none;">
+                        <div class="guide-header" onclick="toggleGuide(this)"><span>4. Solfeggio</span><span class="guide-arrow">▼</span></div>
+                        <div class="guide-content">
+                            • <strong>396 Hz:</strong> Liberar miedo.<br>
+                            • <strong>417 Hz:</strong> Cambio.<br>
+                            • <strong>528 Hz:</strong> Milagros/ADN.<br>
+                            • <strong>639 Hz:</strong> Conexión.<br>
+                            • <strong>741 Hz:</strong> Intuición.<br>
+                            • <strong>852 Hz:</strong> Orden espiritual.
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- NAVBAR -->
+        <nav class="navbar">
+            <button class="nav-item active" data-target="control" onclick="switchView('control')">
+                <span class="nav-icon">🎚️</span><span>Control</span>
+            </button>
+            <button class="nav-item" data-target="presets" onclick="switchView('presets')">
+                <span class="nav-icon">💠</span><span>Presets</span>
+            </button>
+            <button class="nav-item" data-target="coherence" onclick="switchView('coherence')">
+                <span class="nav-icon">💚</span><span>Coherencia</span>
+            </button>
+            <button class="nav-item" data-target="guide" onclick="switchView('guide')">
+                <span class="nav-icon">📖</span><span>Guía</span>
+            </button>
+        </nav>
+    </div>
+
+    <script>
+        // --- LOGICA DE ARRANQUE INSTANTÁNEO ---
+        const startBtn = document.getElementById('start-btn');
+        const overlay = document.getElementById('start-overlay');
+        const uiLayer = document.getElementById('ui-layer');
+
+        function startApp() {
+            // Cambiar texto para feedback visual
+            startBtn.innerText = "INICIANDO...";
+            
+            // Forzar UI Update antes de procesar audio
+            requestAnimationFrame(() => {
+                // 1. Intentar desbloquear audio (sin esperar promesa)
+                try {
+                    const AC = window.AudioContext || window.webkitAudioContext;
+                    if(!audio.ctx) audio.ctx = new AC();
+                    if(audio.ctx.state === 'suspended') audio.ctx.resume();
+                    // Buffer silencioso para mobile
+                    const b = audio.ctx.createBuffer(1, 1, 22050);
+                    const s = audio.ctx.createBufferSource();
+                    s.buffer = b; s.connect(audio.ctx.destination);
+                    s.start(0);
+                } catch(e) { console.log(e); }
+
+                // 2. Transición UI INMEDIATA (Independiente del audio)
+                setTimeout(() => {
+                    overlay.style.opacity = '0';
+                    overlay.style.pointerEvents = 'none'; // Importante para click-through
+                    
+                    setTimeout(() => {
+                        overlay.style.display = 'none';
+                        uiLayer.style.opacity = '1';
+                        uiLayer.style.pointerEvents = 'all';
+                        vis.init(); vis.start();
+                    }, 500);
+                }, 50);
+            });
+        }
+
+        // Listener Click
+        startBtn.addEventListener('click', startApp);
+        // Listener Touch (Backup para iOS/Android estricto)
+        startBtn.addEventListener('touchstart', (e) => {
+            e.preventDefault(); // Evitar doble disparo
+            startApp();
+        });
+        
+        window.forceEnter = startApp; // Enlace de emergencia
+
+        // --- MOTOR DE AUDIO ---
+        const audio = {
+            ctx: null, nodes: {}, isPlaying: false, isIsochronic: false, atmosType: 'ocean',
+            
+            init() { 
+                if(this.ctx) return; 
+                try { const AC = window.AudioContext || window.webkitAudioContext; this.ctx = new AC(); } catch(e){} 
+            },
+
+            getNoiseBuffer(type) {
+                const bs = this.ctx.sampleRate * 2; 
+                const buf = this.ctx.createBuffer(1, bs, this.ctx.sampleRate);
+                const d = buf.getChannelData(0);
+                if(type === 'air') { for(let i=0; i<bs; i++) d[i] = (Math.random()*2-1)*0.05; }
+                else { 
+                    let b0=0,b1=0,b2=0,b3=0,b4=0,b5=0,b6=0;
+                    for(let i=0; i<bs; i++) {
+                        const w = Math.random()*2-1;
+                        b0=0.99886*b0+w*0.0555179; b1=0.99332*b1+w*0.0750759; b2=0.96900*b2+w*0.1538520;
+                        d[i]=(b0+b1+b2+w*0.5362)*0.1;
+                    }
+                }
+                return buf;
+            },
+
+            play(f, b, n, iso, atmos) {
+                if(!this.ctx) this.init();
+                if(this.ctx.state === 'suspended') this.ctx.resume();
+                if(this.isPlaying) this.stop(true);
+                this.isIsochronic=iso; this.atmosType=atmos;
+
+                if(!this.nodes.master) {
+                    this.nodes.master = this.ctx.createGain();
+                    this.nodes.analyser = this.ctx.createAnalyser(); this.nodes.analyser.fftSize=2048;
+                    this.nodes.master.connect(this.ctx.destination); this.nodes.master.connect(this.nodes.analyser);
+                    this.nodes.toneMix = this.ctx.createGain(); this.nodes.atmosGain = this.ctx.createGain();
+                    this.nodes.isoGate = this.ctx.createGain();
+                    this.nodes.toneMix.connect(this.nodes.isoGate); this.nodes.isoGate.connect(this.nodes.master);
+                    this.nodes.atmosGain.connect(this.nodes.master);
+                }
+
+                this.nodes.oscL = this.ctx.createOscillator(); this.nodes.oscR = this.ctx.createOscillator();
+                const pL = this.ctx.createStereoPanner(); const pR = this.ctx.createStereoPanner();
+
+                if(this.isIsochronic) {
+                    this.nodes.oscL.frequency.value=f; this.nodes.oscR.frequency.value=f; pL.pan.value=0; pR.pan.value=0;
+                    this.nodes.lfo = this.ctx.createOscillator(); this.nodes.lfo.frequency.value=b;
+                    this.nodes.lfoGain = this.ctx.createGain(); this.nodes.lfoGain.gain.value=1;
+                    this.nodes.lfo.connect(this.nodes.lfoGain); this.nodes.lfoGain.connect(this.nodes.isoGate.gain);
+                    this.nodes.lfo.start();
+                } else {
+                    this.nodes.oscL.frequency.value=f; this.nodes.oscR.frequency.value=f+b; pL.pan.value=-1; pR.pan.value=1;
+                    this.nodes.isoGate.gain.cancelScheduledValues(0); this.nodes.isoGate.gain.value=1;
+                }
+
+                this.nodes.oscL.connect(pL).connect(this.nodes.toneMix);
+                this.nodes.oscR.connect(pR).connect(this.nodes.toneMix);
+
+                this.nodes.atmosSrc = this.ctx.createBufferSource();
+                this.nodes.atmosSrc.buffer = this.getNoiseBuffer(this.atmosType);
+                this.nodes.atmosSrc.loop = true;
+                this.nodes.atmosFilter = this.ctx.createBiquadFilter();
+                if(this.atmosType==='ocean') { this.nodes.atmosFilter.type='lowpass'; this.nodes.atmosFilter.frequency.value=400; }
+                else if(this.atmosType==='forest') { this.nodes.atmosFilter.type='lowpass'; this.nodes.atmosFilter.frequency.value=1200; }
+                else { this.nodes.atmosFilter.type='highpass'; this.nodes.atmosFilter.frequency.value=600; }
+                this.nodes.atmosSrc.connect(this.nodes.atmosFilter).connect(this.nodes.atmosGain);
+
+                this.update(f,b,n);
+                this.nodes.toneMix.gain.setValueAtTime(0,this.ctx.currentTime);
+                this.nodes.toneMix.gain.linearRampToValueAtTime(0.6,this.ctx.currentTime+0.3);
+                
+                this.nodes.oscL.start(); this.nodes.oscR.start(); this.nodes.atmosSrc.start();
+                this.isPlaying=true;
+                document.getElementById('playBtn').classList.add('playing');
+                document.getElementById('playBtn').innerText="■";
+                vis.start();
+            },
+
+            stop(inst) {
+                if(!this.isPlaying) return;
+                const t = this.ctx.currentTime;
+                if(!inst) { this.nodes.master.gain.setValueAtTime(this.nodes.master.gain.value,t); this.nodes.master.gain.exponentialRampToValueAtTime(0.001,t+0.5); }
+                setTimeout(()=>{
+                    try{ this.nodes.oscL.stop(); this.nodes.oscR.stop(); this.nodes.atmosSrc.stop(); if(this.nodes.lfo)this.nodes.lfo.stop(); }catch(e){}
+                    if(!inst) { this.nodes.master.gain.cancelScheduledValues(0); this.nodes.master.gain.value=1; }
+                }, inst?0:500);
+                this.isPlaying=false;
+                document.getElementById('playBtn').classList.remove('playing');
+                document.getElementById('playBtn').innerText="▶";
+            },
+
+            update(f,b,n) {
+                if(!this.isPlaying) return;
+                const t=this.ctx.currentTime;
+                if(this.isIsochronic) {
+                    this.nodes.oscL.frequency.setTargetAtTime(f,t,0.1); this.nodes.oscR.frequency.setTargetAtTime(f,t,0.1);
+                    this.nodes.lfo.frequency.setTargetAtTime(b,t,0.1);
+                } else {
+                    this.nodes.oscL.frequency.setTargetAtTime(f,t,0.1); this.nodes.oscR.frequency.setTargetAtTime(f+b,t,0.1);
+                }
+                this.nodes.atmosGain.gain.setTargetAtTime(n,t,0.2);
+            }
+        };
+
+        // --- VISUALIZADOR ---
+        const vis = {
+            cvs: document.getElementById('cymaticCanvas'), ctx: null, angle: 0, hue: 270, running: false,
+            init() { this.ctx=this.cvs.getContext('2d'); this.resize(); window.onresize=()=>this.resize(); this.cvs.onclick=()=>{if(document.body.classList.contains('zen-active')) toggleZen()}; },
+            resize() { this.cvs.width=window.innerWidth; this.cvs.height=window.innerHeight; },
+            start() { if(!this.running){this.running=true; this.loop();} },
+            loop() {
+                if(!this.running) return; requestAnimationFrame(()=>this.loop());
+                this.ctx.fillStyle='rgba(0,0,0,0.1)'; this.ctx.fillRect(0,0,this.cvs.width,this.cvs.height);
+                if(!audio.isPlaying || !audio.nodes.analyser) return;
+                const d=new Uint8Array(audio.nodes.analyser.frequencyBinCount); audio.nodes.analyser.getByteFrequencyData(d);
+                let bass=0; for(let i=2; i<20; i++) bass+=d[i]; bass=bass/18/255;
+                this.angle+=0.003+(bass*0.01); this.ctx.lineWidth=1+bass*6;
+                const s=document.body.classList.contains('zen-active')?'90%':'60%';
+                this.ctx.strokeStyle=`hsla(${this.hue},${s},60%,${0.2+bass})`;
+                const cx=this.cvs.width/2, cy=this.cvs.height/2;
+                const sc=document.body.classList.contains('zen-active')?1.5:1;
+                this.draw(cx,cy,(100+bass*100)*sc,8,this.angle,bass); this.draw(cx,cy,(200+bass*50)*sc,16,-this.angle,bass);
+            },
+            draw(x,y,r,s,rot,i) {
+                this.ctx.beginPath(); for(let j=0; j<=s; j++){
+                    const th=(j/s)*Math.PI*2+rot; const px=x+Math.cos(th)*r+Math.cos(th*5)*(r*0.1*i); const py=y+Math.sin(th)*r+Math.sin(th*5)*(r*0.1*i);
+                    if(j===0)this.ctx.moveTo(px,py); else this.ctx.lineTo(px,py);
+                } this.ctx.closePath(); this.ctx.stroke();
+            }
+        };
+
+        // --- INTERFAZ ---
+        const ui={ f:document.getElementById('slFreq'), b:document.getElementById('slBeat'), n:document.getElementById('slNoise'), iso:document.getElementById('isoToggle'), atmos:document.getElementById('atmosSelect'), txtF:document.getElementById('valFreq'), txtB:document.getElementById('valBeat'), txtN:document.getElementById('valNoise'), status:document.getElementById('statusText') };
+        
+        function updateUI(){
+            const f=parseFloat(ui.f.value), b=parseFloat(ui.b.value), n=parseFloat(ui.n.value), iso=ui.iso.checked;
+            ui.txtF.innerText=f+" Hz"; ui.txtB.innerText=b+" Hz"; ui.txtN.innerText=Math.round(n*250)+"%";
+            let st=iso?"ISOCRÓNICO":"BINAURAL";
+            if(b<4)st+=" • DELTA"; else if(b<8)st+=" • THETA"; else if(b<14)st+=" • ALPHA"; else if(b<30)st+=" • BETA"; else st+=" • GAMMA";
+            ui.status.innerText=st; if(audio.isPlaying) audio.update(f,b,n);
+        }
+        [ui.f,ui.b,ui.n,ui.iso].forEach(e=>e.addEventListener('input', updateUI));
+        ui.atmos.onchange=()=>{if(audio.isPlaying)togglePlay()};
+        
+        function togglePlay(){ if(audio.isPlaying)audio.stop(); else audio.play(parseFloat(ui.f.value),parseFloat(ui.b.value),parseFloat(ui.n.value),ui.iso.checked,ui.atmos.value); }
+        document.getElementById('playBtn').onclick=togglePlay;
+        function toggleZen(){ document.body.classList.toggle('zen-active'); }
+        document.getElementById('zenBtn').onclick=toggleZen;
+        window.switchView=(id)=>{
+            document.querySelectorAll('.view-section').forEach(e=>e.classList.remove('active')); document.getElementById('view-'+id).classList.add('active');
+            document.querySelectorAll('.nav-item').forEach(e=>e.classList.remove('active')); document.querySelector(`.nav-item[data-target="${id}"]`).classList.add('active');
+            vis.hue={control:270,presets:45,coherence:160,guide:200}[id]||270;
+        };
+        window.toggleGuide=(h)=>h.parentElement.classList.toggle('open');
+        window.loadP=(f,b,iso,atm='ocean')=>{ ui.f.value=f; ui.b.value=b; ui.iso.checked=iso; ui.atmos.value=atm; updateUI(); if(!audio.isPlaying)togglePlay(); switchView('control'); };
+        window.savePreset=()=>{
+            const n=document.getElementById('saveName').value; if(!n)return;
+            const l=JSON.parse(localStorage.getItem('auraEvo')||'[]'); l.push({name:n, f:ui.f.value, b:ui.b.value, iso:ui.iso.checked, atmos:ui.atmos.value});
+            localStorage.setItem('auraEvo', JSON.stringify(l)); renderUserP();
+        };
+        function renderUserP(){
+            const d=document.getElementById('userList'); d.innerHTML="";
+            JSON.parse(localStorage.getItem('auraEvo')||'[]').forEach(p=>{
+                const el=document.createElement('div'); el.className='chip'; el.style.borderColor='var(--primary)';
+                el.innerHTML=`<strong>${p.name}</strong><span>${p.f}Hz + ${p.b}Hz</span>`;
+                el.onclick=()=>loadP(p.f, p.b, p.iso, p.atmos); d.appendChild(el);
+            });
+        }
+        let cohInt;
+        window.toggleCoherence=()=>{
+            const btn=document.getElementById('coherenceBtn'), txt=document.getElementById('breathText'), circ=document.getElementById('breathCircle');
+            if(btn.innerText!=="INICIAR"){
+                clearInterval(cohInt); btn.innerText="INICIAR"; btn.style.background="var(--accent)"; txt.innerText="LISTO"; circ.style.transform="scale(1)"; audio.stop();
+            } else {
+                btn.innerText="DETENER"; btn.style.background="#ef4444"; loadP(528,10,false,'forest'); ui.n.value=0.15; updateUI(); switchView('coherence');
+                let inH=true; txt.innerText="INHALA"; circ.style.transition="transform 5.5s ease-in-out"; circ.style.transform="scale(1.7)";
+                cohInt=setInterval(()=>{ inH=!inH; txt.innerText=inH?"INHALA":"EXHALA"; circ.style.transform=inH?"scale(1.7)":"scale(1)"; }, 5500);
+            }
+        };
+
+        renderUserP(); updateUI();
+    </script>
+</body>
+</html>
+
+
