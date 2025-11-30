@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Aura App</title>
+    <style>
+        body { background: #000; color: #fff; font-family: sans-serif; margin: 0; overflow: hidden; height: 100vh; display: flex; flex-direction: column; }
+        
+        /* PANTALLA DE INICIO / DIAGNÓSTICO */
+        #start-screen {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: #050505; z-index: 9999;
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            text-align: center; padding: 20px;
+        }
+        #start-btn {
+            background: #c084fc; color: #000; border: none; padding: 20px 50px;
+            font-size: 1.2rem; border-radius: 50px; font-weight: bold; margin-top: 20px;
+            cursor: pointer; box-shadow: 0 0 20px rgba(192, 132, 252, 0.5);
+        }
+        #debug-log {
+            margin-top: 30px; font-size: 0.7rem; color: #ff5555; 
+            background: rgba(50,0,0,0.5); padding: 10px; border-radius: 5px;
+            max-width: 90%; white-space: pre-wrap; display: none;
+        }
+        .force-link { margin-top: 20px; color: #666; text-decoration: underline; font-size: 0.8rem; }
+
+        /* APP UI */
+        #app-container { opacity: 0; transition: opacity 1s; height: 100%; display: flex; flex-direction: column; pointer-events: none; }
+        
+        /* HEADER & CONTROLS */
+        header { padding: 20px; text-align: center; background: rgba(20,20,30,0.9); }
+        h1 { margin: 0; font-weight: 300; letter-spacing: 4px; color: #c084fc; }
+        
+        .main-content { flex: 1; overflow-y: auto; padding: 20px; }
+        
+        .card {
+            background: rgba(30,30,35,0.8); border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 20px; padding: 20px; margin-bottom: 20px;
+        }
+
+        /* PLAY BUTTON */
+        .play-wrapper { display: flex; justify-content: center; margin-bottom: 20px; }
+        #playBtn {
+            width: 80px; height: 80px; border-radius: 50%; border: 2px solid rgba(255,255,255,0.2);
+            background: transparent; color: #fff; font-size: 2rem; cursor: pointer;
+            display: flex; align-items: center; justify-content: center; transition: 0.3s;
+        }
+        #playBtn.active { background: #c084fc; color: #000; border-color: #c084fc; box-shadow: 0 0 30px #c084fc; }
+
+        /* SLIDERS */
+        .control-row { margin-bottom: 20px; }
+        .labels { display: flex; justify-content: space-between; font-size: 0.8rem; color: #aaa; margin-bottom: 5px; }
+        .val { color: #fff; font-weight: bold; }
+        input[type=range] { width: 100%; accent-color: #c084fc; }
+
+        /* PRESETS */
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .preset {
+            background: rgba(255,255,255,0.05); padding: 15px; border-radius: 10px; cursor: pointer;
+        }
+        .preset strong { display: block; color: #fff; }
+        .preset span { font-size: 0.75rem; color: #888; }
+
+        /* CANVAS */
+        canvas { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1; opacity: 0.6; }
+
+    </style>
+</head>
+<body>
+
+    <canvas id="cvs"></canvas>
+
+    <!-- PANTALLA DE INICIO -->
+    <div id="start-screen">
+        <h1 style="font-size: 2.5rem;">AURA</h1>
+        <p style="color: #888;">Resonancia & Sonido</p>
+        <button id="start-btn">ACTIVAR</button>
+        <div id="debug-log"></div>
+        <div class="force-link" onclick="enterApp()">Entrar sin audio (Debug)</div>
+    </div>
+
+    <!-- APP -->
+    <div id="app-container">
+        <header>
+            <h1>AURA</h1>
+            <div id="status" style="font-size: 0.7rem; color: #fbbf24; margin-top: 5px;">Sistema Listo</div>
+        </header>
+
+        <div class="main-content">
+            <div class="card">
+                <div class="play-wrapper">
+                    <div id="playBtn">▶</div>
+                </div>
+
+                <div class="control-row">
+                    <div class="labels"><span>Frecuencia Base</span><span class="val" id="dispF">432 Hz</span></div>
+                    <input type="range" id="slF" min="60" max="963" value="432">
+                </div>
+                <div class="control-row">
+                    <div class="labels"><span>Beat Binaural</span><span class="val" id="dispB">7.8 Hz</span></div>
+                    <input type="range" id="slB" min="0" max="45" value="7.8" step="0.1">
+                </div>
+                <div class="control-row">
+                    <div class="labels"><span>Ruido Rosa</span><span class="val" id="dispN">10%</span></div>
+                    <input type="range" id="slN" min="0" max="0.5" value="0.1" step="0.01">
+                </div>
+            </div>
+
+            <h3 style="color:#fbbf24; font-weight:300;">Presets</h3>
+            <div class="grid">
+                <div class="preset" onclick="load(432, 7.83)"><strong>Schumann</strong><span>7.83Hz</span></div>
+                <div class="preset" onclick="load(528, 4)"><strong>Sanación</strong><span>528Hz</span></div>
+                <div class="preset" onclick="load(40, 40)"><strong>Gamma Focus</strong><span>40Hz</span></div>
+                <div class="preset" onclick="load(174, 2)"><strong>Alivio Dolor</strong><span>174Hz</span></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- SISTEMA DE ERRORES VISIBLES ---
+        function logErr(msg) {
+            const d = document.getElementById('debug-log');
+            d.style.display = 'block';
+            d.innerText += "Error: " + msg + "\n";
+        }
+        window.onerror = function(msg, source, lineno) {
+            logErr(msg + " (Line: " + lineno + ")");
+            return false;
+        };
+
+        // --- AUDIO ENGINE SIMPLIFICADO ---
+        const audio = {
+            ctx: null, nodes: {}, playing: false,
+            init: function() {
+                try {
+                    const AC = window.AudioContext || window.webkitAudioContext;
+                    if(!AC) throw new Error("WebAudio no soportado");
+                    if(!this.ctx) this.ctx = new AC();
+                    if(this.ctx.state === 'suspended') this.ctx.resume();
+                    
+                    // Master
+                    if(!this.nodes.master) {
+                        this.nodes.master = this.ctx.createGain();
+                        this.nodes.analyser = this.ctx.createAnalyser();
+                        this.nodes.analyser.fftSize = 2048;
+                        this.nodes.master.connect(this.ctx.destination);
+                        this.nodes.master.connect(this.nodes.analyser);
+                    }
+                } catch(e) { logErr(e.message); }
+            },
+            play: function(f, b, n) {
+                if(!this.ctx) this.init();
+                if(!this.ctx) return;
+                
+                if(this.playing) this.stop(true);
+
+                try {
+                    const oscL = this.ctx.createOscillator();
+                    const oscR = this.ctx.createOscillator();
+                    const pL = this.ctx.createStereoPanner();
+                    const pR = this.ctx.createStereoPanner();
+                    const gainT = this.ctx.createGain();
+                    const gainN = this.ctx.createGain();
+
+                    oscL.connect(pL).connect(gainT);
+                    oscR.connect(pR).connect(gainT);
+                    gainT.connect(this.nodes.master);
+                    
+                    pL.pan.value = -1; pR.pan.value = 1;
+                    oscL.frequency.value = f;
+                    oscR.frequency.value = f + b;
+
+                    // Noise
+                    const bs = this.ctx.sampleRate * 2;
+                    const buf = this.ctx.createBuffer(1, bs, this.ctx.sampleRate);
+                    const d = buf.getChannelData(0);
+                    for(let i=0; i<bs; i++) d[i] = (Math.random()*2-1) * 0.1;
+                    
+                    const noise = this.ctx.createBufferSource();
+                    noise.buffer = buf;
+                    noise.loop = true;
+                    noise.connect(gainN).connect(this.nodes.master);
+                    gainN.gain.value = n;
+
+                    oscL.start(); oscR.start(); noise.start();
+
+                    // Refs
+                    this.nodes.srcs = [oscL, oscR, noise];
+                    this.nodes.gains = [gainT, gainN];
+                    this.playing = true;
+                    
+                    // UI
+                    document.getElementById('playBtn').innerText = "■";
+                    document.getElementById('playBtn').classList.add('active');
+                    vis.active = true; vis.loop();
+                } catch(e) { logErr("Play: " + e.message); }
+            },
+            stop: function(inst) {
+                if(!this.playing) return;
+                try {
+                    this.nodes.srcs.forEach(n => n.stop());
+                } catch(e){}
+                this.playing = false;
+                document.getElementById('playBtn').innerText = "▶";
+                document.getElementById('playBtn').classList.remove('active');
+            },
+            update: function(f, b, n) {
+                if(!this.playing) return;
+                try {
+                    const t = this.ctx.currentTime;
+                    this.nodes.srcs[0].frequency.setTargetAtTime(f, t, 0.1);
+                    this.nodes.srcs[1].frequency.setTargetAtTime(f+b, t, 0.1);
+                    this.nodes.gains[1].gain.setTargetAtTime(n, t, 0.1);
+                } catch(e){}
+            }
+        };
+
+        // --- VISUALIZADOR ---
+        const vis = {
+            c: document.getElementById('cvs'),
+            ctx: document.getElementById('cvs').getContext('2d'),
+            active: false, ang: 0,
+            init: function() { 
+                this.c.width = window.innerWidth; 
+                this.c.height = window.innerHeight; 
+            },
+            loop: function() {
+                if(!this.active) return;
+                requestAnimationFrame(() => this.loop());
+                this.ctx.fillStyle = 'rgba(0,0,0,0.1)';
+                this.ctx.fillRect(0,0,this.c.width,this.c.height);
+                
+                if(!audio.playing) return;
+                const d = new Uint8Array(audio.nodes.analyser.frequencyBinCount);
+                audio.nodes.analyser.getByteFrequencyData(d);
+                let v = d[10] / 255; // Simple bass
+
+                this.ang += 0.01;
+                this.ctx.strokeStyle = `rgba(192,132,252,${0.2+v})`;
+                this.ctx.lineWidth = 2 + v*5;
+                this.ctx.beginPath();
+                this.ctx.arc(this.c.width/2, this.c.height/2, 100 + v*50, 0, 6.28);
+                this.ctx.stroke();
+            }
+        };
+
+        // --- INTERFAZ ---
+        const sl = { f: document.getElementById('slF'), b: document.getElementById('slB'), n: document.getElementById('slN') };
+        const txt = { f: document.getElementById('dispF'), b: document.getElementById('dispB'), n: document.getElementById('dispN') };
+
+        function upUI() {
+            const f = parseFloat(sl.f.value);
+            const b = parseFloat(sl.b.value);
+            const n = parseFloat(sl.n.value);
+            txt.f.innerText = f + " Hz";
+            txt.b.innerText = b + " Hz";
+            txt.n.innerText = Math.round(n*100) + "%";
+            audio.update(f, b, n);
+        }
+
+        [sl.f, sl.b, sl.n].forEach(e => e.addEventListener('input', upUI));
+
+        document.getElementById('playBtn').onclick = () => {
+            if(audio.playing) audio.stop();
+            else audio.play(parseFloat(sl.f.value), parseFloat(sl.b.value), parseFloat(sl.n.value));
+        };
+
+        window.load = (f,b) => {
+            sl.f.value = f; sl.b.value = b; upUI();
+            if(!audio.playing) audio.play(f,b,parseFloat(sl.n.value));
+        };
+
+        // --- INICIO ---
+        window.enterApp = function() {
+            document.getElementById('start-screen').style.display = 'none';
+            document.getElementById('app-container').style.opacity = 1;
+            document.getElementById('app-container').style.pointerEvents = 'all';
+            vis.init();
+        };
+
+        document.getElementById('start-btn').onclick = () => {
+            audio.init();
+            enterApp();
+        };
+
+    </script>
+</body>
+</html>
+
+
