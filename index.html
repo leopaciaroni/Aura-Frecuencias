@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="theme-color" content="#000000">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>Aura Evolution</title>
+    <style>
+        /* --- ESTILOS EVOLUTION --- */
+        :root {
+            --bg-dark: #050508;
+            --glass: rgba(25, 25, 35, 0.8);
+            --glass-border: rgba(255, 255, 255, 0.12);
+            --primary: #d8b4fe; /* Violeta Luz */
+            --accent: #2dd4bf;   /* Turquesa Sanación */
+            --gold: #fcd34d;    /* Dorado Místico */
+            --text: #f3f4f6;
+            --text-muted: #9ca3af;
+        }
+
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; user-select: none; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: var(--bg-dark);
+            color: var(--text);
+            margin: 0;
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* FONDO FRACTAL (Ahora con z-index dinámico para Zen Mode) */
+        #cymaticCanvas {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            z-index: 0; transition: filter 0.8s, opacity 0.5s; opacity: 0.6; pointer-events: none;
+        }
+        body.zen-active #cymaticCanvas {
+            z-index: 999; /* Traer al frente en Zen */
+            opacity: 1;
+            filter: contrast(1.2) brightness(1.2);
+            pointer-events: auto; /* Permitir click para salir */
+            cursor: pointer;
+        }
+
+        /* PANTALLA DE ARRANQUE */
+        #start-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: #000; z-index: 10000;
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            transition: opacity 0.6s ease;
+        }
+        
+        #start-btn {
+            background: linear-gradient(135deg, var(--primary), #8b5cf6);
+            color: #000; border: none; padding: 22px 55px; font-weight: 800;
+            font-size: 1.1rem; border-radius: 50px; cursor: pointer;
+            box-shadow: 0 0 40px rgba(216, 180, 254, 0.4);
+            text-transform: uppercase; letter-spacing: 2px;
+            animation: pulse 2s infinite; margin-top: 30px;
+        }
+        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); } }
+        
+        .skip-link {
+            margin-top: 30px; color: var(--text-muted); text-decoration: underline; font-size: 0.75rem; cursor: pointer;
+        }
+
+        /* CAPA UI PRINCIPAL */
+        #ui-layer {
+            position: relative; z-index: 10; height: 100%;
+            display: flex; flex-direction: column;
+            opacity: 0; pointer-events: none; transition: opacity 1s ease;
+        }
+        /* Ocultar UI en Zen Mode */
+        body.zen-active #ui-layer {
+            opacity: 0 !important; pointer-events: none !important;
+        }
+        .zen-instruction {
+            position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            color: rgba(255,255,255,0.6); pointer-events: none; opacity: 0; font-size: 1rem; z-index: 1001;
+            text-shadow: 0 2px 10px rgba(0,0,0,0.5);
+        }
+        body.zen-active .zen-instruction { animation: blinkOut 4s forwards; }
+        @keyframes blinkOut { 0% {opacity:0} 20% {opacity:1} 70% {opacity:1} 100% {opacity:0} }
+
+
+        /* HEADER & LOGO */
+        header {
+            padding: 15px; text-align: center;
+            background: linear-gradient(to bottom, rgba(0,0,0,0.95), transparent);
+            padding-bottom: 25px;
+        }
+        h1 { margin: 0; font-weight: 200; letter-spacing: 5px; font-size: 1.3rem; text-transform: uppercase; 
+             background: linear-gradient(to right, #fff, var(--primary)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        
+        .app-logo {
+            max-height: 60px; /* Ajusta el tamaño del logo aquí */
+            margin: 15px auto 10px; display: block;
+            filter: drop-shadow(0 0 10px rgba(216, 180, 254, 0.3));
+        }
+
+        .status-badge {
+            display: inline-block; font-size: 0.7rem; color: var(--gold); 
+            background: rgba(252, 211, 77, 0.1); border: 1px solid rgba(252, 211, 77, 0.3);
+            padding: 4px 12px; border-radius: 20px;
+            text-transform: uppercase; letter-spacing: 1px;
+        }
+
+        /* VIEWPORT */
+        #main-viewport {
+            flex: 1; overflow-y: auto; padding: 10px 20px 100px 20px;
+            pointer-events: auto; scroll-behavior: smooth;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        /* PANELES & CONTROLES */
+        .panel {
+            background: var(--glass); backdrop-filter: blur(25px); -webkit-backdrop-filter: blur(25px);
+            border: 1px solid var(--glass-border); border-radius: 24px; padding: 25px 20px; margin-bottom: 20px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+        }
+
+        .play-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; }
+        #playBtn {
+            width: 80px; height: 80px; border-radius: 50%;
+            border: 1px solid rgba(255,255,255,0.15); background: rgba(255,255,255,0.05); 
+            color: #fff; font-size: 2.2rem; cursor: pointer; transition: 0.3s; 
+            display: flex; align-items: center; justify-content: center; padding-left: 5px;
+        }
+        #playBtn.playing {
+            background: var(--primary); color: #000; border-color: var(--primary); padding-left: 0;
+            box-shadow: 0 0 40px rgba(192, 132, 252, 0.5);
+        }
+
+        #zenBtn {
+            background: rgba(255,255,255,0.1); border: 1px solid var(--glass-border); 
+            color: var(--text); padding: 10px 16px; border-radius: 20px; font-size: 0.8rem;
+            display: flex; align-items: center; gap: 6px; cursor: pointer; transition: 0.2s;
+        }
+        #zenBtn:active { background: rgba(255,255,255,0.2); }
+
+        /* SWITCH ISOCRÓNICO */
+        .iso-switch-container {
+            display: flex; align-items: center; justify-content: space-between;
+            margin-bottom: 25px; background: rgba(0,0,0,0.2); padding: 10px 15px; border-radius: 15px;
+        }
+        .switch { position: relative; display: inline-block; width: 46px; height: 24px; }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider-toggle {
+            position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0;
+            background-color: #444; transition: .4s; border-radius: 24px;
+        }
+        .slider-toggle:before {
+            position: absolute; content: ""; height: 18px; width: 18px; left: 3px; bottom: 3px;
+            background-color: white; transition: .4s; border-radius: 50%;
+        }
+        input:checked + .slider-toggle { background-color: var(--accent); }
+        input:checked + .slider-toggle:before { transform: translateX(22px); }
+
+        /* SLIDERS & SELECTS */
+        .slider-wrap { margin-bottom: 25px; }
+        .slider-head { display: flex; justify-content: space-between; font-size: 0.85rem; margin-bottom: 12px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; }
+        .val { color: #fff; font-weight: 700; }
+        input[type=range] { width: 100%; -webkit-appearance: none; background: transparent; padding: 10px 0; }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none; height: 22px; width: 22px; border-radius: 50%;
+            background: var(--primary); margin-top: -9px; box-shadow: 0 0 15px var(--primary); border: 2px solid #fff;
+        }
+        input[type=range]::-webkit-slider-runnable-track { width: 100%; height: 4px; background: rgba(255,255,255,0.15); border-radius: 2px; }
+
+        select.atmos-select {
+            width: 100%; background: rgba(0,0,0,0.3); color: #fff; border: 1px solid var(--glass-border);
+            padding: 12px; border-radius: 12px; font-size: 0.9rem; outline: none; margin-bottom: 15px;
+            -webkit-appearance: none; /* Safari fix */
+        }
+
+        /* NAVBAR */
+        .navbar {
+            position: fixed; bottom: 0; width: 100%; height: 75px;
+            background: rgba(8, 8, 12, 0.95); backdrop-filter: blur(20px);
+            border-top: 1px solid var(--glass-border);
+            display: flex; justify-content: space-around; align-items: center;
+            padding-bottom: 10px; z-index: 50;
+        }
+        .nav-item {
+            background: none; border: none; color: #666;
+            display: flex; flex-direction: column; align-items: center; gap: 5px;
+            font-size: 0.65rem; width: 100%; transition: 0.3s;
+        }
+        .nav-icon { font-size: 1.4rem; transition: 0.3s; }
+        .nav-item.active { color: #fff; }
+        .nav-item.active .nav-icon { transform: translateY(-4px); }
+        .nav-item[data-target="control"].active .nav-icon { color: var(--primary); text-shadow: 0 0 12px var(--primary); }
+        .nav-item[data-target="presets"].active .nav-icon { color: var(--gold); text-shadow: 0 0 12px var(--gold); }
+        .nav-item[data-target="coherence"].active .nav-icon { color: var(--accent); text-shadow: 0 0 12px var(--accent); }
+        .nav-item[data-target="guide"].active .nav-icon { color: #fff; text-shadow: 0 0 12px #fff; }
+
+        /* VISTAS & COMPONENTES */
+        .view-section { display: none; opacity: 0; animation: fadeUp 0.4s forwards; }
+        .view-section.active { display: block; }
+        @keyframes fadeUp { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
+
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .chip {
+            background: rgba(255,255,255,0.03); border: 1px solid var(--glass-border);
+            padding: 15px; border-radius: 16px; text-align: left; transition: 0.2s; position: relative; overflow: hidden;
+        }
+        .chip:active { background: rgba(255,255,255,0.08); transform: scale(0.98); }
+        .chip strong { display: block; color: #fff; margin-bottom: 5px; font-size: 0.9rem; }
+        .chip span { font-size: 0.7rem; color: var(--text-muted); }
+        .chip.solfeggio { border-color: rgba(216, 180, 254, 0.3); }
+        .chip.science { border-color: rgba(252, 211, 77, 0.3); }
+
+        .coherence-circle {
+            width: 160px; height: 160px; border-radius: 50%;
+            background: rgba(45, 212, 191, 0.05); border: 3px solid var(--accent);
+            margin: 30px auto; display: flex; justify-content: center; align-items: center;
+            font-size: 1.1rem; color: var(--accent); letter-spacing: 3px; font-weight: 300;
+            box-shadow: 0 0 30px rgba(45, 212, 191, 0.2); transition: transform 0.1s;
+        }
+
+        /* GUÍA (ACCORDION) */
+        .guide-item { border-bottom: 1px solid var(--glass-border); }
+        .guide-header {
+            padding: 15px 0; cursor: pointer; display: flex; justify-content: space-between; align-items: center; font-weight: 600;
+        }
+        .guide-content {
+            max-height: 0; overflow: hidden; transition: max-height 0.3s ease-out; color: var(--text-muted); font-size: 0.9rem; line-height: 1.6;
+        }
+        .guide-item.open .guide-content { max-height: 500px; padding-bottom: 15px; }
+        .guide-arrow { transition: 0.3s; }
+        .guide-item.open .guide-arrow { transform: rotate(180deg); color: var(--primary); }
+
+    </style>
+</head>
+<body>
+
+    <!-- FONDO FRACTAL INTERACTIVO -->
+    <canvas id="cymaticCanvas"></canvas>
+    <div class="zen-instruction">Toca la pantalla para salir</div>
+
+    <!-- PANTALLA DE ARRANQUE (SISTEMA BLINDADO) -->
+    <div id="start-overlay">
+        <!-- Logo en pantalla de inicio también -->
+        <img src="1000428918.png" alt="Logo" style="max-height: 80px; margin-bottom: 20px; filter: drop-shadow(0 0 15px rgba(216, 180, 254, 0.5));">
+        <h1 style="font-size: 2rem; margin: 0 0 5px; letter-spacing: 6px; color: var(--primary);">AURA</h1>
+        <p style="color: var(--text-muted); font-size: 0.9rem; letter-spacing: 3px; margin-top:0;">EVOLUTION</p>
+        
+        <button id="start-btn">CONECTAR</button>
+        <p style="color:#666; font-size: 0.75rem; margin-top: 30px;">Usa audífonos para mejores resultados</p>
+        
+        <div class="skip-link" onclick="forceEnter()">Entrar en modo seguro (Debug)</div>
+        <div id="debug-error" style="color:#f87171; font-size:10px; margin-top:15px; display:none; max-width:80%; text-align:center;"></div>
+    </div>
+
+    <!-- UI LAYER PRINCIPAL -->
+    <div id="ui-layer">
+        <header>
+            <h1>AURA EVOLUTION</h1>
+            <!-- LOGO AQUÍ -->
+            <img src="1000428918.png" alt="Logo Aura" class="app-logo">
+            <div id="statusText" class="status-badge">Sistema Listo</div>
+        </header>
+
+        <div id="main-viewport">
+            
+            <!-- VISTA 1: CONTROL -->
+            <div id="view-control" class="view-section active">
+                <div class="panel">
+                    <div class="play-row">
+                        <button id="zenBtn">👁️ Modo Zen</button>
+                        <div id="playBtn">▶</div>
+                        <div style="width: 80px;"></div> <!-- Espaciador -->
+                    </div>
+
+                    <!-- Toggle Isocrónico -->
+                    <div class="iso-switch-container">
+                        <span style="font-size: 0.9rem; color: #ddd;">Modo Isocrónico (Pulsos Audibles)</span>
+                        <label class="switch">
+                            <input type="checkbox" id="isoToggle">
+                            <span class="slider-toggle"></span>
+                        </label>
+                    </div>
+
+                    <div class="slider-wrap">
+                        <div class="slider-head"><span>Frecuencia Base</span> <span class="val" id="valFreq">432 Hz</span></div>
+                        <input type="range" id="slFreq" min="60" max="963" value="432">
+                    </div>
+                    <div class="slider-wrap">
+                        <div class="slider-head"><span>Beat / Pulso</span> <span class="val" id="valBeat">7.8 Hz</span></div>
+                        <input type="range" id="slBeat" min="0.1" max="45" step="0.1" value="7.8">
+                    </div>
+                    
+                    <div class="slider-wrap" style="margin-bottom: 5px;">
+                         <div class="slider-head"><span>Atmósfera Natural</span> <span class="val" id="valNoise">20%</span></div>
+                    </div>
+                    <!-- Selector de Atmósfera -->
+                    <select id="atmosSelect" class="atmos-select">
+                        <option value="ocean">🌊 Océano Profundo (Marrón)</option>
+                        <option value="forest">🌲 Bosque Lluvioso (Rosa)</option>
+                        <option value="air">🌬️ Aire Puro (Blanco)</option>
+                    </select>
+                    <input type="range" id="slNoise" min="0" max="0.4" step="0.01" value="0.1">
+                </div>
+
+                <div class="panel" style="padding: 15px;">
+                    <div style="display:flex; gap:10px;">
+                        <input type="text" id="saveName" placeholder="Nombre de tu sesión..." style="flex:1; background:rgba(255,255,255,0.05); border:none; color:#fff; padding:12px; border-radius:12px;">
+                        <button onclick="savePreset()" style="background:var(--primary); color:#000; border:none; padding:0 20px; border-radius:12px; font-weight:bold;">Guardar</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- VISTA 2: PRESETS (Nuevas Frecuencias) -->
+            <div id="view-presets" class="view-section">
+                <h3 style="color:var(--gold); font-weight:300; margin:0 0 15px;">Ciencia y Bienestar</h3>
+                <div class="grid-2">
+                    <div class="chip science" onclick="loadP(40, 40, false)"><strong>Gamma Cognitivo (40Hz)</strong><span>Foco, Memoria, Anti-deterioro</span></div>
+                    <div class="chip science" onclick="loadP(10, 10, false)"><strong>Alpha Flow (10Hz)</strong><span>Calma despierta, reducción estrés</span></div>
+                    <div class="chip science" onclick="loadP(432, 7.83, false)"><strong>Schumann (7.83Hz)</strong><span>Grounding, biorritmo natural</span></div>
+                    <div class="chip science" onclick="loadP(528, 0.5, false)"><strong>Sanación Profunda</strong><span>528Hz + Delta (Sueño reparador)</span></div>
+                </div>
+
+                <h3 style="color:var(--primary); font-weight:300; margin:25px 0 15px;">Solfeggio Sagrado</h3>
+                <div class="grid-2">
+                    <div class="chip solfeggio" onclick="loadP(174, 2, false)"><strong>174 Hz (Alivio)</strong><span>Anestésico natural, dolor</span></div>
+                    <div class="chip solfeggio" onclick="loadP(285, 3, false)"><strong>285 Hz (Tejidos)</strong><span>Restauración física</span></div>
+                    <div class="chip solfeggio" onclick="loadP(396, 4, false)"><strong>396 Hz (Liberar)</strong><span>Miedo y culpabilidad</span></div>
+                    <div class="chip solfeggio" onclick="loadP(528, 5, false)"><strong>528 Hz (Milagros)</strong><span>Reparación ADN, claridad</span></div>
+                    <div class="chip solfeggio" onclick="loadP(852, 8, false)"><strong>852 Hz (Intuición)</strong><span>Despertar espiritual</span></div>
+                    <div class="chip solfeggio" onclick="loadP(963, 10, false)"><strong>963 Hz (Divino)</strong><span>Conexión universal, Unidad</span></div>
+                </div>
+                
+                <h3 style="color:#fff; font-weight:300; margin:25px 0 15px;">Mis Guardados</h3>
+                <div id="userList" class="grid-2"></div>
+            </div>
+
+            <!-- VISTA 3: COHERENCIA -->
+            <div id="view-coherence" class="view-section">
+                <div class="panel" style="text-align:center; padding: 40px 20px; border-color: rgba(45, 212, 191, 0.3);">
+                    <h2 style="color:var(--accent); font-weight:300; margin:0; letter-spacing: 2px;">COHERENCIA</h2>
+                    <p style="font-size:0.8rem; color:var(--text-muted); margin-top: 10px;">Sincroniza corazón y cerebro con tu respiración.</p>
+                    
+                    <div class="coherence-circle" id="breathCircle">
+                        <span id="breathText">LISTO</span>
+                    </div>
+
+                    <button id="coherenceBtn" onclick="toggleCoherence()" style="background:var(--accent); color:#000; border:none; padding:15px 40px; border-radius:30px; font-weight:800; font-size:1rem; margin-top:15px; box-shadow: 0 0 25px rgba(45, 212, 191, 0.4); transition:0.3s;">INICIAR SESIÓN</button>
+                </div>
+                
+                <div class="chip" style="background:rgba(45, 212, 191, 0.05); border-color: rgba(45, 212, 191, 0.2);">
+                    <strong style="color:var(--accent)">¿Cómo funciona?</strong>
+                    <span>Al iniciar, el audio activa 528Hz con un pulso Alpha de 10Hz. Inhala cuando el círculo crece, exhala cuando se contrae (ciclo de 11 segundos).</span>
+                </div>
+            </div>
+
+            <!-- VISTA 4: GUÍA (Instrucciones) -->
+            <div id="view-guide" class="view-section">
+                <h2 style="font-weight: 300; color: #fff; margin-bottom: 20px;">Guía de Usuario</h2>
+                <div class="pan
