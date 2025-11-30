@@ -2,30 +2,29 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <!-- Metaetiquetas críticas para móvil -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="theme-color" content="#000000">
-    <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <title>Aura Ultimate</title>
     <style>
-        /* CSS Reset & Variables */
+        /* --- ESTILOS VISUALES AVANZADOS --- */
         :root {
-            --bg: #000000;
-            --glass: rgba(20, 20, 30, 0.85);
-            --border: rgba(255, 255, 255, 0.15);
-            --primary: #c084fc;
-            --heart: #34d399;
+            --bg-dark: #000000;
+            --glass: rgba(20, 20, 30, 0.75);
+            --glass-border: rgba(255, 255, 255, 0.1);
+            --primary: #c084fc; /* Violeta Místico */
+            --heart: #34d399;   /* Verde Sanación */
+            --gold: #fbbf24;    /* Dorado Presets */
             --text: #f3f4f6;
-            --gold: #fbbf24;
         }
 
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; user-select: none; }
 
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background-color: var(--bg);
+            background-color: var(--bg-dark);
             color: var(--text);
             margin: 0;
             height: 100vh;
@@ -34,13 +33,13 @@
             flex-direction: column;
         }
 
-        /* Canvas de Fondo */
+        /* FONDO FRACTAL */
         #cymaticCanvas {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            z-index: 0; transition: filter 0.5s;
+            z-index: 0; transition: filter 0.8s;
         }
 
-        /* Overlay de Inicio (Pantalla de carga) */
+        /* PANTALLA DE ARRANQUE (Overlay) */
         #start-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: #000; z-index: 9999;
@@ -54,114 +53,358 @@
             font-size: 1.1rem; border-radius: 50px; cursor: pointer;
             box-shadow: 0 0 40px rgba(192, 132, 252, 0.4);
             text-transform: uppercase; letter-spacing: 2px; font-weight: 700;
-            animation: pulse 2s infinite;
+            animation: pulse 2s infinite; margin-top: 20px;
         }
         @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); } }
 
-        /* Capa UI Principal */
+        /* CAPA UI PRINCIPAL */
         #ui-layer {
             position: relative; z-index: 10; height: 100%;
             display: flex; flex-direction: column;
-            opacity: 0; pointer-events: none; transition: opacity 0.8s ease;
+            opacity: 0; pointer-events: none; transition: opacity 1s ease;
         }
 
-        /* Header */
+        /* HEADER */
         header {
             padding: 15px; text-align: center;
             background: linear-gradient(to bottom, rgba(0,0,0,0.9), transparent);
         }
-        h1 { margin: 0; font-weight: 200; letter-spacing: 4px; font-size: 1.2rem; text-transform: uppercase; color: var(--text); }
-        .status-badge { font-size: 0.75rem; color: var(--gold); margin-top: 5px; opacity: 0.8; }
+        h1 { margin: 0; font-weight: 200; letter-spacing: 4px; font-size: 1.2rem; text-transform: uppercase; 
+             background: linear-gradient(to right, #fff, var(--primary)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .status-badge { font-size: 0.75rem; color: var(--gold); margin-top: 5px; opacity: 0.9; text-transform: uppercase; letter-spacing: 1px; }
 
-        /* Contenedor Scrollable */
+        /* VIEWPORT SCROLLABLE */
         #main-viewport {
             flex: 1; overflow-y: auto; padding: 10px 20px 100px 20px;
             pointer-events: auto; scroll-behavior: smooth;
         }
 
-        /* Paneles */
+        /* PANELES DE VIDRIO */
         .panel {
-            background: var(--glass); backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px);
-            border: 1px solid var(--border); border-radius: 20px; padding: 20px; margin-bottom: 15px;
+            background: var(--glass); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border); border-radius: 24px; padding: 25px 20px; margin-bottom: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
         }
 
-        /* Botón Play Grande */
-        .play-row { display: flex; justify-content: center; margin-bottom: 25px; position: relative; }
+        /* BOTÓN PLAY GRANDE */
+        .play-row { display: flex; justify-content: center; margin-bottom: 30px; position: relative; }
         #playBtn {
-            width: 80px; height: 80px; border-radius: 50%;
-            border: 2px solid rgba(255,255,255,0.1);
+            width: 85px; height: 85px; border-radius: 50%;
+            border: 1px solid rgba(255,255,255,0.2);
             background: rgba(255,255,255,0.05); color: #fff; font-size: 2rem;
             cursor: pointer; transition: 0.3s; display: flex; align-items: center; justify-content: center;
+            box-shadow: 0 0 20px rgba(0,0,0,0.3);
         }
         #playBtn.playing {
             background: var(--primary); color: #000; border-color: var(--primary);
-            box-shadow: 0 0 50px rgba(192, 132, 252, 0.3);
+            box-shadow: 0 0 50px rgba(192, 132, 252, 0.5);
         }
 
-        /* Sliders */
-        .slider-wrap { margin-bottom: 25px; }
-        .slider-head { display: flex; justify-content: space-between; font-size: 0.9rem; margin-bottom: 12px; color: #a1a1aa; }
-        .val { color: #fff; font-weight: 600; }
-        input[type=range] {
-            width: 100%; -webkit-appearance: none; background: transparent; padding: 10px 0;
+        /* BOTÓN ZEN */
+        #zenBtn {
+            position: absolute; right: 0; top: 0;
+            background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.1); 
+            color: #fff; padding: 8px 15px; border-radius: 20px; font-size: 0.75rem;
+            display: flex; align-items: center; gap: 5px;
         }
+
+        /* SLIDERS */
+        .slider-wrap { margin-bottom: 25px; }
+        .slider-head { display: flex; justify-content: space-between; font-size: 0.85rem; margin-bottom: 12px; color: #a1a1aa; text-transform: uppercase; letter-spacing: 1px; }
+        .val { color: #fff; font-weight: 700; }
+        input[type=range] { width: 100%; -webkit-appearance: none; background: transparent; padding: 10px 0; }
         input[type=range]::-webkit-slider-thumb {
-            -webkit-appearance: none; height: 24px; width: 24px; border-radius: 50%;
-            background: #fff; border: 2px solid var(--primary); margin-top: -10px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.5);
+            -webkit-appearance: none; height: 22px; width: 22px; border-radius: 50%;
+            background: var(--primary); margin-top: -9px; box-shadow: 0 0 15px var(--primary); border: 2px solid #fff;
         }
         input[type=range]::-webkit-slider-runnable-track {
-            width: 100%; height: 4px; background: rgba(255,255,255,0.2); border-radius: 2px;
+            width: 100%; height: 4px; background: rgba(255,255,255,0.15); border-radius: 2px;
         }
 
-        /* Botón Zen */
-        #zenBtn {
-            position: absolute; right: 0; top: 10px;
-            background: rgba(255,255,255,0.1); border: none; color: #fff;
-            padding: 8px 12px; border-radius: 15px; font-size: 0.8rem;
-        }
-
-        /* Navegación */
+        /* NAVBAR INFERIOR */
         .navbar {
             position: fixed; bottom: 0; width: 100%; height: 80px;
-            background: rgba(0,0,0,0.9); backdrop-filter: blur(20px);
-            border-top: 1px solid var(--border);
+            background: rgba(5, 5, 8, 0.95); backdrop-filter: blur(20px);
+            border-top: 1px solid var(--glass-border);
             display: flex; justify-content: space-around; align-items: center;
-            padding-bottom: 15px; pointer-events: auto; z-index: 50;
+            padding-bottom: 15px; z-index: 50;
         }
         .nav-item {
-            background: none; border: none; color: #555;
-            display: flex; flex-direction: column; align-items: center; gap: 5px;
-            font-size: 0.7rem; width: 100%;
+            background: none; border: none; color: #666;
+            display: flex; flex-direction: column; align-items: center; gap: 6px;
+            font-size: 0.7rem; width: 100%; transition: 0.3s;
         }
-        .nav-icon { font-size: 1.6rem; transition: 0.3s; }
+        .nav-icon { font-size: 1.5rem; transition: 0.3s; }
+        
         .nav-item.active { color: #fff; }
         .nav-item.active .nav-icon { transform: translateY(-5px); }
-        .nav-item[data-target="control"].active .nav-icon { color: var(--primary); }
-        .nav-item[data-target="presets"].active .nav-icon { color: var(--gold); }
-        .nav-item[data-target="coherence"].active .nav-icon { color: var(--heart); }
+        .nav-item[data-target="control"].active .nav-icon { color: var(--primary); text-shadow: 0 0 15px var(--primary); }
+        .nav-item[data-target="presets"].active .nav-icon { color: var(--gold); text-shadow: 0 0 15px var(--gold); }
+        .nav-item[data-target="coherence"].active .nav-icon { color: var(--heart); text-shadow: 0 0 15px var(--heart); }
 
-        /* Vistas y Presets */
-        .view-section { display: none; }
-        .view-section.active { display: block; animation: fadeUp 0.4s ease; }
-        @keyframes fadeUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        /* VISTAS */
+        .view-section { display: none; opacity: 0; transform: translateY(20px); transition: 0.4s; }
+        .view-section.active { display: block; opacity: 1; transform: translateY(0); }
 
+        /* PRESETS GRID */
         .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
         .chip {
-            background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.05);
-            padding: 15px; border-radius: 15px; text-align: left;
+            background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08);
+            padding: 15px; border-radius: 16px; text-align: left; transition: 0.2s;
         }
-        .chip:active { background: rgba(255,255,255,0.15); transform: scale(0.98); }
-        .chip strong { display: block; color: #fff; margin-bottom: 4px; font-size: 0.95rem; }
-        .chip span { font-size: 0.75rem; color: #aaa; }
+        .chip:active { background: rgba(255,255,255,0.1); transform: scale(0.98); }
+        .chip strong { display: block; color: #fff; margin-bottom: 5px; font-size: 0.9rem; }
+        .chip span { font-size: 0.7rem; color: #888; }
 
-        /* Coherencia */
+        /* COHERENCIA */
         .coherence-circle {
-            width: 160px; height: 160px; border-radius: 50%;
-            background: rgba(52, 211, 153, 0.05); border: 3px solid var(--heart);
-            margin: 30px auto; display: flex; justify-content: center; align-items: center;
-            font-size: 1.1rem; color: var(--heart); letter-spacing: 2px;
-            box-shadow: 0 0 40px rgba(52, 211, 153, 0.15);
+            width: 180px; height: 180px; border-radius: 50%;
+            background: rgba(52, 211, 153, 0.05); border: 2px solid var(--heart);
+            margin: 40px auto; display: flex; justify-content: center; align-items: center;
+            font-size: 1.2rem; color: var(--heart); letter-spacing: 3px; font-weight: 300;
+            box-shadow: 0 0 40px rgba(52, 211, 153, 0.15); transition: transform 0.1s;
+        }
+
+        /* MODO ZEN */
+        body.zen-mode #ui-layer { opacity: 0; pointer-events: none; }
+        .zen-instruction {
+            position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            color: rgba(255,255,255,0.4); pointer-events: none; opacity: 0; font-size: 0.9rem;
+        }
+        body.zen-mode .zen-instruction { animation: blink 4s forwards; }
+        @keyframes blink { 0% {opacity:0} 20% {opacity:1} 80% {opacity:1} 100% {opacity:0} }
+
+    </style>
+</head>
+<body>
+
+    <!-- FONDO FRACTAL -->
+    <canvas id="cymaticCanvas"></canvas>
+    <div class="zen-instruction">Toca para volver</div>
+
+    <!-- PANTALLA DE ARRANQUE (NECESARIA PARA AUDIO MÓVIL) -->
+    <div id="start-overlay">
+        <h1 style="font-size: 2.5rem; margin-bottom: 5px; letter-spacing: 8px;">AURA</h1>
+        <p style="color:#666; font-size: 0.9rem; letter-spacing: 2px;">ULTIMATE RESONANCE</p>
+        <button id="start-btn">ACTIVAR SISTEMA</button>
+        <p style="color:#444; font-size: 0.7rem; margin-top: 30px;">Sube el volumen de tu dispositivo</p>
+    </div>
+
+    <!-- UI LAYER -->
+    <div id="ui-layer">
+        <header>
+            <h1>Aura Ultimate</h1>
+            <div id="statusText" class="status-badge">Sistema Listo</div>
+        </header>
+
+        <div id="main-viewport">
+            
+            <!-- VISTA 1: CONTROL -->
+            <div id="view-control" class="view-section active">
+                <div class="panel">
+                    <div class="play-row">
+                        <div id="playBtn">▶</div>
+                        <button id="zenBtn">👁️ Zen Mode</button>
+                    </div>
+
+                    <div class="slider-wrap">
+                        <div class="slider-head"><span>Frecuencia Base</span> <span class="val" id="valFreq">432 Hz</span></div>
+                        <input type="range" id="slFreq" min="60" max="963" value="432">
+                    </div>
+                    <div class="slider-wrap">
+                        <div class="slider-head"><span>Pulso Binaural</span> <span class="val" id="valBeat">7.8 Hz</span></div>
+                        <input type="range" id="slBeat" min="0" max="45" step="0.1" value="7.8">
+                    </div>
+                    <div class="slider-wrap">
+                        <div class="slider-head"><span>Atmósfera (Rosa)</span> <span class="val" id="valNoise">10%</span></div>
+                        <input type="range" id="slNoise" min="0" max="0.5" step="0.01" value="0.1">
+                    </div>
+                </div>
+
+                <div class="panel" style="padding: 15px;">
+                    <div style="display:flex; gap:10px;">
+                        <input type="text" id="saveName" placeholder="Nombre para guardar..." style="flex:1; background:rgba(255,255,255,0.05); border:none; color:#fff; padding:12px; border-radius:12px;">
+                        <button onclick="savePreset()" style="background:var(--primary); color:#000; border:none; padding:0 20px; border-radius:12px; font-weight:bold;">Guardar</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- VISTA 2: PRESETS -->
+            <div id="view-presets" class="view-section">
+                <h3 style="color:var(--gold); font-weight:300; margin-top:0; margin-bottom: 15px;">Frecuencias Maestras</h3>
+                <div class="grid-2">
+                    <div class="chip" onclick="loadP(432, 7.83)"><strong>Schumann (7.83)</strong><span>Conexión Tierra</span></div>
+                    <div class="chip" onclick="loadP(528, 4)"><strong>Sanación (528)</strong><span>Reparación ADN</span></div>
+                    <div class="chip" onclick="loadP(40, 40)"><strong>Gamma (40)</strong><span>Foco Cognitivo</span></div>
+                    <div class="chip" onclick="loadP(111, 0)"><strong>Sagrado (111)</strong><span>Misticismo Puro</span></div>
+                    <div class="chip" onclick="loadP(174, 2)"><strong>Alivio (174)</strong><span>Anti-Dolor Delta</span></div>
+                    <div class="chip" onclick="loadP(963, 10)"><strong>Divino (963)</strong><span>Conexión Alpha</span></div>
+                </div>
+                
+                <h3 style="color:#fff; font-weight:300; margin-top:25px; margin-bottom: 15px;">Mis Guardados</h3>
+                <div id="userList" class="grid-2"></div>
+            </div>
+
+            <!-- VISTA 3: COHERENCIA -->
+            <div id="view-coherence" class="view-section">
+                <div class="panel" style="text-align:center; padding: 40px 20px; border-color: rgba(52, 211, 153, 0.3);">
+                    <h2 style="color:var(--heart); font-weight:300; margin:0; letter-spacing: 2px;">RESPIRACIÓN</h2>
+                    <p style="font-size:0.8rem; color:#aaa; margin-top: 10px;">Sincroniza tu aliento con el círculo</p>
+                    
+                    <div class="coherence-circle" id="breathCircle">
+                        <span id="breathText">LISTO</span>
+                    </div>
+
+                    <button id="coherenceBtn" onclick="toggleCoherence()" style="background:var(--heart); color:#000; border:none; padding:15px 40px; border-radius:30px; font-weight:bold; font-size:1rem; margin-top:10px; box-shadow: 0 0 20px rgba(52, 211, 153, 0.4);">INICIAR SESIÓN</button>
+                </div>
+                
+                <div class="chip" style="background:rgba(52, 211, 153, 0.05); border-color: rgba(52, 211, 153, 0.1);">
+                    <strong style="color:var(--heart)">Preset Automático</strong>
+                    <span>Al iniciar, el audio cambiará a 528Hz + 10Hz Alpha para máxima calma.</span>
+                </div>
+            </div>
+
+        </div>
+
+        <nav class="navbar">
+            <button class="nav-item active" data-target="control" onclick="switchView('control')">
+                <span class="nav-icon">🎚️</span><span>Control</span>
+            </button>
+            <button class="nav-item" data-target="presets" onclick="switchView('presets')">
+                <span class="nav-icon">💠</span><span>Presets</span>
+            </button>
+            <button class="nav-item" data-target="coherence" onclick="switchView('coherence')">
+                <span class="nav-icon">💚</span><span>Coherencia</span>
+            </button>
+        </nav>
+    </div>
+
+    <script>
+        // --- MOTOR DE AUDIO ROBUSTO ---
+        const audio = {
+            ctx: null, nodes: {}, isPlaying: false,
+            
+            init() {
+                if(this.ctx) { if(this.ctx.state === 'suspended') this.ctx.resume(); return; }
+                try {
+                    const AC = window.AudioContext || window.webkitAudioContext;
+                    this.ctx = new AC();
+                    this.nodes.master = this.ctx.createGain();
+                    this.nodes.analyser = this.ctx.createAnalyser();
+                    this.nodes.analyser.fftSize = 2048;
+                    this.nodes.analyser.smoothingTimeConstant = 0.85;
+
+                    this.nodes.master.connect(this.ctx.destination);
+                    this.nodes.master.connect(this.nodes.analyser);
+                    
+                    this.nodes.toneGain = this.ctx.createGain();
+                    this.nodes.noiseGain = this.ctx.createGain();
+                    this.nodes.toneGain.connect(this.nodes.master);
+                    this.nodes.noiseGain.connect(this.nodes.master);
+                } catch(e) { console.error(e); }
+            },
+
+            play(f, b, n) {
+                this.init();
+                if(!this.ctx) return;
+                
+                if(this.isPlaying) this.stop(true);
+
+                this.nodes.oscL = this.ctx.createOscillator();
+                this.nodes.oscR = this.ctx.createOscillator();
+                const pL = this.ctx.createStereoPanner();
+                const pR = this.ctx.createStereoPanner();
+
+                this.nodes.oscL.connect(pL).connect(this.nodes.toneGain);
+                this.nodes.oscR.connect(pR).connect(this.nodes.toneGain);
+                pL.pan.value = -1; pR.pan.value = 1;
+
+                // Generador Ruido Rosa
+                const bSize = this.ctx.sampleRate * 2;
+                const buf = this.ctx.createBuffer(1, bSize, this.ctx.sampleRate);
+                const d = buf.getChannelData(0);
+                let b0=0,b1=0,b2=0;
+                for(let i=0; i<bSize; i++) {
+                    const w = Math.random()*2-1;
+                    b0 = 0.99886*b0 + w*0.0555179;
+                    b1 = 0.99332*b1 + w*0.0750759;
+                    b2 = 0.96900*b2 + w*0.1538520;
+                    d[i] = (b0+b1+b2+w*0.5362)*0.1;
+                }
+                this.nodes.noise = this.ctx.createBufferSource();
+                this.nodes.noise.buffer = buf;
+                this.nodes.noise.loop = true;
+                this.nodes.noise.connect(this.nodes.noiseGain);
+
+                this.update(f, b, n);
+                
+                // Fade In Suave
+                this.nodes.toneGain.gain.setValueAtTime(0, this.ctx.currentTime);
+                this.nodes.toneGain.gain.linearRampToValueAtTime(0.5, this.ctx.currentTime + 0.3);
+
+                this.nodes.oscL.start(); this.nodes.oscR.start(); this.nodes.noise.start();
+                this.isPlaying = true;
+                
+                document.getElementById('playBtn').innerText = "■";
+                document.getElementById('playBtn').classList.add('playing');
+                vis.start();
+            },
+
+            stop(instant) {
+                if(!this.isPlaying) return;
+                const t = this.ctx.currentTime;
+                
+                if(!instant) {
+                    this.nodes.master.gain.setValueAtTime(this.nodes.master.gain.value, t);
+                    this.nodes.master.gain.exponentialRampToValueAtTime(0.001, t+0.5);
+                }
+                
+                setTimeout(() => {
+                    if(this.nodes.oscL) this.nodes.oscL.stop();
+                    if(this.nodes.oscR) this.nodes.oscR.stop();
+                    if(this.nodes.noise) this.nodes.noise.stop();
+                    if(!instant) this.nodes.master.gain.value = 1;
+                }, instant ? 0 : 500);
+                
+                this.isPlaying = false;
+                document.getElementById('playBtn').innerText = "▶";
+                document.getElementById('playBtn').classList.remove('playing');
+            },
+
+            update(f, b, n) {
+                if(!this.isPlaying) return;
+                const t = this.ctx.currentTime;
+                this.nodes.oscL.frequency.setTargetAtTime(f, t, 0.1);
+                this.nodes.oscR.frequency.setTargetAtTime(f+b, t, 0.1);
+                this.nodes.noiseGain.gain.setTargetAtTime(n, t, 0.1);
+            }
+        };
+
+        // --- VISUALIZADOR FRACTAL ---
+        const vis = {
+            cvs: document.getElementById('cymaticCanvas'),
+            ctx: document.getElementById('cymaticCanvas').getContext('2d'),
+            angle: 0, hue: 270, running: false,
+            init() { this.resize(); window.onresize = () => this.resize(); },
+            resize() { this.cvs.width = window.innerWidth; this.cvs.height = window.innerHeight; },
+            start() { if(!this.running) { this.running = true; this.loop(); } },
+            loop() {
+                if(!this.running) return;
+                requestAnimationFrame(() => this.loop());
+                
+                this.ctx.fillStyle = 'rgba(0,0,0,0.1)';
+                this.ctx.fillRect(0,0,this.cvs.width, this.cvs.height);
+                
+                if(!audio.isPlaying) return;
+                
+                const data = new Uint8Array(audio.nodes.analyser.frequencyBinCount);
+                audio.nodes.analyser.getByteFrequencyData(data);
+                
+                let bass = 0; for(let i=0; i<40; i++) bass += data[i];
+                bass = bass / 40 / 255;
+
+                this.angle += 0.005 + (bass * 0.02);
+                        box-shadow: 0 0 40px rgba(52, 211, 153, 0.15);
         }
 
         /* Modo Zen */
