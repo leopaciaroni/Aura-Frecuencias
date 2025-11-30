@@ -404,6 +404,198 @@
                 bass = bass / 40 / 255;
 
                 this.angle += 0.005 + (bass * 0.02);
+              <div class="slider-head"><span>Pulso Binaural</span> <span class="val" id="valBeat">7.8 Hz</span></div>
+                        <input type="range" id="slBeat" min="0" max="45" step="0.1" value="7.8">
+                    </div>
+                    <div class="slider-wrap">
+                        <div class="slider-head"><span>Atmósfera (Rosa)</span> <span class="val" id="valNoise">10%</span></div>
+                        <input type="range" id="slNoise" min="0" max="0.5" step="0.01" value="0.1">
+                    </div>
+                </div>
+
+                <div class="panel" style="padding: 15px;">
+                    <div style="display:flex; gap:10px;">
+                        <input type="text" id="saveName" placeholder="Nombre para guardar..." style="flex:1; background:rgba(255,255,255,0.05); border:none; color:#fff; padding:12px; border-radius:12px;">
+                        <button onclick="savePreset()" style="background:var(--primary); color:#000; border:none; padding:0 20px; border-radius:12px; font-weight:bold;">Guardar</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- VISTA 2: PRESETS -->
+            <div id="view-presets" class="view-section">
+                <h3 style="color:var(--gold); font-weight:300; margin-top:0; margin-bottom: 15px;">Frecuencias Maestras</h3>
+                <div class="grid-2">
+                    <div class="chip" onclick="loadP(432, 7.83)"><strong>Schumann (7.83)</strong><span>Conexión Tierra</span></div>
+                    <div class="chip" onclick="loadP(528, 4)"><strong>Sanación (528)</strong><span>Reparación ADN</span></div>
+                    <div class="chip" onclick="loadP(40, 40)"><strong>Gamma (40)</strong><span>Foco Cognitivo</span></div>
+                    <div class="chip" onclick="loadP(111, 0)"><strong>Sagrado (111)</strong><span>Misticismo Puro</span></div>
+                    <div class="chip" onclick="loadP(174, 2)"><strong>Alivio (174)</strong><span>Anti-Dolor Delta</span></div>
+                    <div class="chip" onclick="loadP(963, 10)"><strong>Divino (963)</strong><span>Conexión Alpha</span></div>
+                </div>
+                
+                <h3 style="color:#fff; font-weight:300; margin-top:25px; margin-bottom: 15px;">Mis Guardados</h3>
+                <div id="userList" class="grid-2"></div>
+            </div>
+
+            <!-- VISTA 3: COHERENCIA -->
+            <div id="view-coherence" class="view-section">
+                <div class="panel" style="text-align:center; padding: 40px 20px; border-color: rgba(52, 211, 153, 0.3);">
+                    <h2 style="color:var(--heart); font-weight:300; margin:0; letter-spacing: 2px;">RESPIRACIÓN</h2>
+                    <p style="font-size:0.8rem; color:#aaa; margin-top: 10px;">Sincroniza tu aliento con el círculo</p>
+                    
+                    <div class="coherence-circle" id="breathCircle">
+                        <span id="breathText">LISTO</span>
+                    </div>
+
+                    <button id="coherenceBtn" onclick="toggleCoherence()" style="background:var(--heart); color:#000; border:none; padding:15px 40px; border-radius:30px; font-weight:bold; font-size:1rem; margin-top:10px; box-shadow: 0 0 20px rgba(52, 211, 153, 0.4);">INICIAR SESIÓN</button>
+                </div>
+                
+                <div class="chip" style="background:rgba(52, 211, 153, 0.05); border-color: rgba(52, 211, 153, 0.1);">
+                    <strong style="color:var(--heart)">Preset Automático</strong>
+                    <span>Al iniciar, el audio cambiará a 528Hz + 10Hz Alpha para máxima calma.</span>
+                </div>
+            </div>
+
+        </div>
+
+        <nav class="navbar">
+            <button class="nav-item active" data-target="control" onclick="switchView('control')">
+                <span class="nav-icon">🎚️</span><span>Control</span>
+            </button>
+            <button class="nav-item" data-target="presets" onclick="switchView('presets')">
+                <span class="nav-icon">💠</span><span>Presets</span>
+            </button>
+            <button class="nav-item" data-target="coherence" onclick="switchView('coherence')">
+                <span class="nav-icon">💚</span><span>Coherencia</span>
+            </button>
+        </nav>
+    </div>
+
+    <script>
+        // --- MOTOR DE AUDIO ROBUSTO ---
+        const audio = {
+            ctx: null, nodes: {}, isPlaying: false,
+            
+            init() {
+                if(this.ctx) { if(this.ctx.state === 'suspended') this.ctx.resume(); return; }
+                try {
+                    const AC = window.AudioContext || window.webkitAudioContext;
+                    this.ctx = new AC();
+                    this.nodes.master = this.ctx.createGain();
+                    this.nodes.analyser = this.ctx.createAnalyser();
+                    this.nodes.analyser.fftSize = 2048;
+                    this.nodes.analyser.smoothingTimeConstant = 0.85;
+
+                    this.nodes.master.connect(this.ctx.destination);
+                    this.nodes.master.connect(this.nodes.analyser);
+                    
+                    this.nodes.toneGain = this.ctx.createGain();
+                    this.nodes.noiseGain = this.ctx.createGain();
+                    this.nodes.toneGain.connect(this.nodes.master);
+                    this.nodes.noiseGain.connect(this.nodes.master);
+                } catch(e) { console.error(e); }
+            },
+
+            play(f, b, n) {
+                this.init();
+                if(!this.ctx) return;
+                
+                if(this.isPlaying) this.stop(true);
+
+                this.nodes.oscL = this.ctx.createOscillator();
+                this.nodes.oscR = this.ctx.createOscillator();
+                const pL = this.ctx.createStereoPanner();
+                const pR = this.ctx.createStereoPanner();
+
+                this.nodes.oscL.connect(pL).connect(this.nodes.toneGain);
+                this.nodes.oscR.connect(pR).connect(this.nodes.toneGain);
+                pL.pan.value = -1; pR.pan.value = 1;
+
+                // Generador Ruido Rosa
+                const bSize = this.ctx.sampleRate * 2;
+                const buf = this.ctx.createBuffer(1, bSize, this.ctx.sampleRate);
+                const d = buf.getChannelData(0);
+                let b0=0,b1=0,b2=0;
+                for(let i=0; i<bSize; i++) {
+                    const w = Math.random()*2-1;
+                    b0 = 0.99886*b0 + w*0.0555179;
+                    b1 = 0.99332*b1 + w*0.0750759;
+                    b2 = 0.96900*b2 + w*0.1538520;
+                    d[i] = (b0+b1+b2+w*0.5362)*0.1;
+                }
+                this.nodes.noise = this.ctx.createBufferSource();
+                this.nodes.noise.buffer = buf;
+                this.nodes.noise.loop = true;
+                this.nodes.noise.connect(this.nodes.noiseGain);
+
+                this.update(f, b, n);
+                
+                // Fade In Suave
+                this.nodes.toneGain.gain.setValueAtTime(0, this.ctx.currentTime);
+                this.nodes.toneGain.gain.linearRampToValueAtTime(0.5, this.ctx.currentTime + 0.3);
+
+                this.nodes.oscL.start(); this.nodes.oscR.start(); this.nodes.noise.start();
+                this.isPlaying = true;
+                
+                document.getElementById('playBtn').innerText = "■";
+                document.getElementById('playBtn').classList.add('playing');
+                vis.start();
+            },
+
+            stop(instant) {
+                if(!this.isPlaying) return;
+                const t = this.ctx.currentTime;
+                
+                if(!instant) {
+                    this.nodes.master.gain.setValueAtTime(this.nodes.master.gain.value, t);
+                    this.nodes.master.gain.exponentialRampToValueAtTime(0.001, t+0.5);
+                }
+                
+                setTimeout(() => {
+                    if(this.nodes.oscL) this.nodes.oscL.stop();
+                    if(this.nodes.oscR) this.nodes.oscR.stop();
+                    if(this.nodes.noise) this.nodes.noise.stop();
+                    if(!instant) this.nodes.master.gain.value = 1;
+                }, instant ? 0 : 500);
+                
+                this.isPlaying = false;
+                document.getElementById('playBtn').innerText = "▶";
+                document.getElementById('playBtn').classList.remove('playing');
+            },
+
+            update(f, b, n) {
+                if(!this.isPlaying) return;
+                const t = this.ctx.currentTime;
+                this.nodes.oscL.frequency.setTargetAtTime(f, t, 0.1);
+                this.nodes.oscR.frequency.setTargetAtTime(f+b, t, 0.1);
+                this.nodes.noiseGain.gain.setTargetAtTime(n, t, 0.1);
+            }
+        };
+
+        // --- VISUALIZADOR FRACTAL ---
+        const vis = {
+            cvs: document.getElementById('cymaticCanvas'),
+            ctx: document.getElementById('cymaticCanvas').getContext('2d'),
+            angle: 0, hue: 270, running: false,
+            init() { this.resize(); window.onresize = () => this.resize(); },
+            resize() { this.cvs.width = window.innerWidth; this.cvs.height = window.innerHeight; },
+            start() { if(!this.running) { this.running = true; this.loop(); } },
+            loop() {
+                if(!this.running) return;
+                requestAnimationFrame(() => this.loop());
+                
+                this.ctx.fillStyle = 'rgba(0,0,0,0.1)';
+                this.ctx.fillRect(0,0,this.cvs.width, this.cvs.height);
+                
+                if(!audio.isPlaying) return;
+                
+                const data = new Uint8Array(audio.nodes.analyser.frequencyBinCount);
+                audio.nodes.analyser.getByteFrequencyData(data);
+                
+                let bass = 0; for(let i=0; i<40; i++) bass += data[i];
+                bass = bass / 40 / 255;
+
+                this.angle += 0.005 + (bass * 0.02);
                 this.ctx.lineWidth = 1 + bass * 4;
                 this.ctx.strokeStyle = `hsla(${this.hue}, 80%, 60%, ${0.3 + bass})`;
 
